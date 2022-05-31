@@ -26,11 +26,14 @@ using namespace std;
 class server
 {
     public:
+        sockaddr_in sockaddr;
+        int sockfd;
+
         string name;
         int port;
         string addr;
         string root;
-    
+
     public:
         server(string _name, int _port, string _addr,string _root) : name(_name), port(_port), addr(_addr), root(_root) {}
         server(){}
@@ -124,6 +127,8 @@ void ft_spaceskip(string &line)
     }
     line.erase(0,i);
 }
+
+
 int is_valid_fd(int fd)
 {
     return fcntl(fd, F_GETFL) != -1 || errno != EBADF;
@@ -148,7 +153,7 @@ void Requeststup(int fd, Request& ss)
 
     for(int i = 0;(getnextline(fd, line))> 0; i++)
     {
-        cout << line << endl;
+        //cout << line << endl;
         str = split(line, ' ');
         if (i == 0)
         {
@@ -159,10 +164,10 @@ void Requeststup(int fd, Request& ss)
         else
         {
             str = split(line, ':');
-            ss.headers[str[0]] = str[1];
+            ss.headers[str[0]] = str[1].substr(1, str[1].size());
         }
+        //cout << line << endl;
         line.clear();
-        
     }
     cout << "||||||||||||||||||||||||||||||||||||||||||" << endl;
 }
@@ -210,7 +215,36 @@ vector<server> serversetup(std::ifstream &file)
     return tmp;
 }
 
+void servers(vector<server> &ss,pollfd *fds)
+{
+    sockaddr_in sockaddr;
 
+    for (int i = 0; i < ss.size(); i++)
+    {
+        int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if ((ss[i].sockfd = sockfd) == -1) 
+        {
+            std::cout << "Failed to create socket. errno: " << errno << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        sockaddr.sin_family = AF_INET;
+        sockaddr.sin_addr.s_addr = inet_addr(ss[i].addr.c_str());
+        sockaddr.sin_port = htons(ss[i].port);
+        if (bind(ss[i].sockfd, (struct sockaddr*)&sockaddr, sizeof(sockaddr)) < 0) 
+        {
+            std::cout << "Failed to bind to port "<< ss[0].port <<". errno: " << errno << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        if (listen(sockfd, 10) < 0) 
+        {
+            std::cout << "Failed to listen on socket. errno: " << errno << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        ss[i].sockaddr = sockaddr;
+        fds[i].fd = ss[i].sockfd;
+        fds[i].events = POLLIN;
+    }
+}
 
 int main(int argc, char **argv)
 {
@@ -223,51 +257,70 @@ int main(int argc, char **argv)
     file.open(line);
     ss = serversetup(file);
     cout << ss[0].name << " " << ss[0].addr<< "::"<< ss[0].port << endl;
+    servers(ss, fds);
 
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd == -1) 
+    
+
+
+    
+    while (1)
     {
-        std::cout << "Failed to create socket. errno: " << errno << std::endl;
-        exit(EXIT_FAILURE);
-    }
+        int rc = poll(fds, 1, (3 * 60 * 1000));
+        if (rc < 0)
+        {
+            perror("  poll() failed");
+            break;
+        }
 
-    sockaddr_in sockaddr;
-    sockaddr.sin_family = AF_INET;
-    sockaddr.sin_addr.s_addr = inet_addr(ss[0].addr.c_str());
-    sockaddr.sin_port = htons(ss[0].port);
+        if (rc == 0)
+        {
+            printf("  poll() timed out.  End program.\n");
+            break;
+        }
+                cout << "efewrfewf" << endl ;
+
+        for (int i = 0; i < ss.size(); i++)
+        {
+            size_t addrlen = sizeof(ss[i].sockaddr);
+
+            char buffer[1000];
+            
+            if(fds[i].events == 0)
+                continue;
+            if (fds[i].events != POLLIN)
+            {
+                printf("  Error! revents = %d\n", fds[i].revents);
+                break;
+            }
+            if (fds[i].fd == ss[i].sockfd)
+            {
+                int connection = accept(ss[i].sockfd, (struct sockaddr*)&ss[i].sockaddr, (socklen_t*)&addrlen);
+                if (connection < 0) {
+                    std::cout << "Failed to grab connection. errno: " << errno << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+                Requeststup(connection, req);
 
 
-    if (bind(sockfd, (struct sockaddr*)&sockaddr, sizeof(sockaddr)) < 0) 
-    {
-        std::cout << "Failed to bind to port "<< ss[0].port <<". errno: " << errno << std::endl;
-        exit(EXIT_FAILURE);
-    }
+                //cout <<req.rqmethod << " " << req.location << " " << req.headers.begin()->first <<endl;
+                // size_t bytesRead = read(connection, buffer, 1000);
+                // std::cout << "The message was: " << buffer<< endl;
+                                        cout << req.rqmethod << " " << req.location << " " << req.vrs << endl;  //hadi dyal rqst lbghiti tpintehom
+                                        for (map<string, string>::iterator it = req.headers.begin(); it != req.headers.end(); it++)
+                                        {
+                                            cout << it->first << ": " << it->second <<endl;
+                                        }
 
 
-    if (listen(sockfd, 10) < 0) {
-        std::cout << "Failed to listen on socket. errno: " << errno << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    while (1){
-    size_t addrlen = sizeof(sockaddr);
-    int connection = accept(sockfd, (struct sockaddr*)&sockaddr, (socklen_t*)&addrlen);
-    if (connection < 0) {
-        std::cout << "Failed to grab connection. errno: " << errno << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    char buffer[1000];
-    fds[0].fd = connection;
-     fds[0].events = POLLIN;
-    poll(fds, 1, (3 * 60 * 1000));
-    Requeststup(connection, req);
-    cout <<req.rqmethod << " " << req.location << " " << req.headers.begin()->first <<endl;
-    // size_t bytesRead = read(connection, buffer, 1000);
-    // std::cout << "The message was: " << buffer<< endl;
-
-    std::string response = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
-    send(connection, response.c_str(), response.size(), 0);
-    cout <<endl << "______________________" << endl;
+                std::string response = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
+                send(connection, response.c_str(), response.size(), 0);
+                cout <<endl << "______________________" << endl;
+                close(connection);
+            }
+            else{
+                ;
+            }
+        }
 
     }
 }
