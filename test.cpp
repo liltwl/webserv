@@ -16,7 +16,13 @@
 #include <netinet/ip.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <sys/poll.h>
+
+
+
 using namespace std;
+
+
 class server
 {
     public:
@@ -134,6 +140,7 @@ int getnextline(int fd, string &line)
     }
     return (is_valid_fd(fd) == 0 || line.size() == 1? 0 : enf);
 }
+
 void Requeststup(int fd, Request& ss)
 {
     string line;
@@ -211,6 +218,8 @@ int main(int argc, char **argv)
     string line  = argv[1];
     vector<server> ss;
     Request req;
+    pollfd fds[10];
+
     file.open(line);
     ss = serversetup(file);
     cout << ss[0].name << " " << ss[0].addr<< "::"<< ss[0].port << endl;
@@ -248,13 +257,15 @@ int main(int argc, char **argv)
     }
 
     char buffer[1000];
+    fds[0].fd = connection;
+     fds[0].events = POLLIN;
+    poll(fds, 1, (3 * 60 * 1000));
     Requeststup(connection, req);
     cout <<req.rqmethod << " " << req.location << " " << req.headers.begin()->first <<endl;
     // size_t bytesRead = read(connection, buffer, 1000);
     // std::cout << "The message was: " << buffer<< endl;
 
     std::string response = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
-    
     send(connection, response.c_str(), response.size(), 0);
     cout <<endl << "______________________" << endl;
 
