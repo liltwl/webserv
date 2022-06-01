@@ -1,104 +1,4 @@
-#include <vector>
-#include <iostream>
-#include <iterator>
-#include <utility>
-#include <ctime>
-#include <iomanip>
-#include <unistd.h>
-#include <signal.h>
-#include <sys/time.h>
-#include <map>
-#include <random>
-#include <fstream>
-#include <sstream>
-#include <sys/socket.h> // For socket functions
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <arpa/inet.h>
-#include <fcntl.h>
-#include <sys/poll.h>
-
-
-
-using namespace std;
-
-
-class server
-{
-    public:
-        sockaddr_in sockaddr;
-        int sockfd;
-
-        string name;
-        int port;
-        string addr;
-        string root;
-
-    public:
-        server(string _name, int _port, string _addr,string _root) : name(_name), port(_port), addr(_addr), root(_root) {}
-        server(){}
-        server(server const& _server) : name(_server.name), port(_server.port), addr(_server.addr), root(_server.root) {}
-
-        server& operator=(server const& _server)
-        {
-            if (this != &_server)
-            {
-                name = _server.name;
-                port = _server.port;
-                addr = _server.addr;
-                root = _server.root;
-            }
-            return *this;
-        }
-};
-
-
-class Request
-{
-    public :
-        string rqmethod;
-        string location;
-        string vrs;
-        map<string, string> headers;
-        vector<string> body;
-
-
-        Request(){}
-        Request& operator=(Request const& other)
-        {
-            if (this != &other)
-            {
-                rqmethod = other.rqmethod;
-                location = other.location;
-                vrs = other.vrs;
-                headers = other.headers;
-                body = other.body;
-            }
-            return *this;
-        }
-        void setrqmethod(string val)
-        {
-            rqmethod = val;
-        }
-
-        void setlocation(string val)
-        {
-            location = val;
-        }
-        void setversion(string val)
-        {
-            vrs = val;
-        }
-        void addheaders(string name, string value)
-        {
-            headers[name] = value;
-        }
-        void addbody(string line)
-        {
-            body.push_back(line);
-        }
-};
-
+#include "webserv.hpp"
 
 vector<string> split (const string &s, char delim)
 {
@@ -139,7 +39,7 @@ int getnextline(int fd, string &line)
     char delim;
     int enf;
 
-    while (is_valid_fd(fd) && (enf = read(fd, &delim, 1))> 0 && delim != '\n')
+    while ((enf = read(fd, &delim, 1))> 0 && delim != '\n')
     {
         line.push_back(delim); 
     }
@@ -214,22 +114,27 @@ vector<server> serversetup(std::ifstream &file)
     }
     return tmp;
 }
+int guard(int n, string err) { if (n == -1) { cout << (err) << endl; exit(1); } return n; }
 
 void servers(vector<server> &ss,pollfd *fds)
 {
     sockaddr_in sockaddr;
+    int yes = 1;
 
     for (int i = 0; i < ss.size(); i++)
     {
+        sockaddr.sin_family = AF_INET;
+        sockaddr.sin_addr.s_addr = inet_addr(ss[i].addr.c_str());
+        sockaddr.sin_port = htons(ss[i].port);
         int sockfd = socket(AF_INET, SOCK_STREAM, 0);
         if ((ss[i].sockfd = sockfd) == -1) 
         {
             std::cout << "Failed to create socket. errno: " << errno << std::endl;
             exit(EXIT_FAILURE);
         }
-        sockaddr.sin_family = AF_INET;
-        sockaddr.sin_addr.s_addr = inet_addr(ss[i].addr.c_str());
-        sockaddr.sin_port = htons(ss[i].port);
+        int flags = guard(fcntl(sockfd, F_GETFL), "could not get flags on TCP listening socket");
+        guard(fcntl(sockfd, F_SETFL, O_NONBLOCK), "could not set TCP listening socket to be non-blocking");
+        // setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
         if (bind(ss[i].sockfd, (struct sockaddr*)&sockaddr, sizeof(sockaddr)) < 0) 
         {
             std::cout << "Failed to bind to port "<< ss[0].port <<". errno: " << errno << std::endl;
@@ -265,7 +170,12 @@ int main(int argc, char **argv)
     
     while (1)
     {
-        int rc = poll(fds, 1, (3 * 60 * 1000));
+        // for (int i = 0; i < ss.size(); i++)
+        // {
+        //     fds[i].fd = ss[i].sockfd;
+        //     fds[i].events = POLLIN;
+        // }
+        int rc = poll(fds, ss.size(),-1);
         if (rc < 0)
         {
             perror("  poll() failed");
@@ -277,13 +187,10 @@ int main(int argc, char **argv)
             printf("  poll() timed out.  End program.\n");
             break;
         }
-                cout << "efewrfewf" << endl ;
-
         for (int i = 0; i < ss.size(); i++)
         {
             size_t addrlen = sizeof(ss[i].sockaddr);
 
-            char buffer[1000];
             
             if(fds[i].events == 0)
                 continue;
@@ -292,12 +199,13 @@ int main(int argc, char **argv)
                 printf("  Error! revents = %d\n", fds[i].revents);
                 break;
             }
-            if (fds[i].fd == ss[i].sockfd)
+            if (fds[i].fd == ss[i].sockfd && fds[i].events & POLLIN)
             {
                 int connection = accept(ss[i].sockfd, (struct sockaddr*)&ss[i].sockaddr, (socklen_t*)&addrlen);
+                cout << "efewrfewf" << endl ;
                 if (connection < 0) {
-                    std::cout << "Failed to grab connection. errno: " << errno << std::endl;
-                    exit(EXIT_FAILURE);
+                    std::cout << "Failed to grab connection= "<< i <<". errno: " << errno << std::endl;
+                    continue;
                 }
                 Requeststup(connection, req);
 
@@ -305,12 +213,12 @@ int main(int argc, char **argv)
                 //cout <<req.rqmethod << " " << req.location << " " << req.headers.begin()->first <<endl;
                 // size_t bytesRead = read(connection, buffer, 1000);
                 // std::cout << "The message was: " << buffer<< endl;
-                                        cout << req.rqmethod << " " << req.location << " " << req.vrs << endl;  //hadi dyal rqst lbghiti tpintehom
-                                        for (map<string, string>::iterator it = req.headers.begin(); it != req.headers.end(); it++)
-                                        {
-                                            cout << it->first << ": " << it->second <<endl;
-                                        }
-
+                cout << req.rqmethod << " " << req.location << " " << req.vrs << endl;  //hadi dyal rqst lbghiti tpintehom
+                for (map<string, string>::iterator it = req.headers.begin(); it != req.headers.end(); it++)
+                {
+                    cout << it->first << ": " << it->second <<endl;
+                }
+                req.clear();
 
                 std::string response = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
                 send(connection, response.c_str(), response.size(), 0);
