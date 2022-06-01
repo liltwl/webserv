@@ -39,7 +39,7 @@ int getnextline(int fd, string &line)
     char delim;
     int enf;
 
-    while ((enf = read(fd, &delim, 1))> 0 && delim != '\n')
+    while ((enf = recv(fd, &delim, 1, 0))> 0 && delim != '\n')
     {
         line.push_back(delim); 
     }
@@ -132,9 +132,10 @@ void servers(vector<server> &ss,pollfd *fds)
             std::cout << "Failed to create socket. errno: " << errno << std::endl;
             exit(EXIT_FAILURE);
         }
-        int flags = guard(fcntl(sockfd, F_GETFL), "could not get flags on TCP listening socket");
-        guard(fcntl(sockfd, F_SETFL, O_NONBLOCK), "could not set TCP listening socket to be non-blocking");
-        // setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+        // int flags = guard(fcntl(sockfd, F_GETFL), "could not get flags on TCP listening socket");
+        // guard(fcntl(sockfd, F_SETFL, O_NONBLOCK | flags), "could not set TCP listening socket to be non-blocking");
+        // setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
+        // ioctl(sockfd, FIONBIO, (char *)&yes);
         if (bind(ss[i].sockfd, (struct sockaddr*)&sockaddr, sizeof(sockaddr)) < 0) 
         {
             std::cout << "Failed to bind to port "<< ss[0].port <<". errno: " << errno << std::endl;
@@ -202,11 +203,11 @@ int main(int argc, char **argv)
             if (fds[i].fd == ss[i].sockfd && fds[i].events & POLLIN)
             {
                 int connection = accept(ss[i].sockfd, (struct sockaddr*)&ss[i].sockaddr, (socklen_t*)&addrlen);
-                cout << "efewrfewf" << endl ;
                 if (connection < 0) {
                     std::cout << "Failed to grab connection= "<< i <<". errno: " << errno << std::endl;
                     continue;
                 }
+                cout << "efewrfewf" << endl ;
                 Requeststup(connection, req);
 
 

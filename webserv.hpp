@@ -20,8 +20,8 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <sys/poll.h>
-
-
+#include <sys/socket.h>
+#include <sys/ioctl.h>
 
 using namespace std;
 
