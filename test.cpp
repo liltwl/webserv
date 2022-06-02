@@ -116,7 +116,7 @@ vector<server> serversetup(std::ifstream &file)
 }
 int guard(int n, string err) { if (n == -1) { cout << (err) << endl; exit(1); } return n; }
 
-void servers(vector<server> &ss,pollfd *fds)
+void servers(vector<server> &ss,pollfd *fds, fd_set *read_fds,fd_set *write_fds,int &maxfd)
 {
     sockaddr_in sockaddr;
     int yes = 1;
@@ -132,10 +132,17 @@ void servers(vector<server> &ss,pollfd *fds)
             std::cout << "Failed to create socket. errno: " << errno << std::endl;
             exit(EXIT_FAILURE);
         }
+        if(maxfd < sockfd)
+            maxfd = sockfd;
+
+
         // int flags = guard(fcntl(sockfd, F_GETFL), "could not get flags on TCP listening socket");
         // guard(fcntl(sockfd, F_SETFL, O_NONBLOCK | flags), "could not set TCP listening socket to be non-blocking");
         // setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
         // ioctl(sockfd, FIONBIO, (char *)&yes);
+
+
+
         if (bind(ss[i].sockfd, (struct sockaddr*)&sockaddr, sizeof(sockaddr)) < 0) 
         {
             std::cout << "Failed to bind to port "<< ss[0].port <<". errno: " << errno << std::endl;
@@ -149,6 +156,7 @@ void servers(vector<server> &ss,pollfd *fds)
         ss[i].sockaddr = sockaddr;
         fds[i].fd = ss[i].sockfd;
         fds[i].events = POLLIN;
+        FD_SET(sockfd, &read_fds[i]);
     }
 }
 
@@ -158,16 +166,21 @@ int main(int argc, char **argv)
     string line  = argv[1];
     vector<server> ss;
     Request req;
+    int maxfd=0;
     pollfd fds[10];
 
+    fd_set read_fds[10];
+	fd_set write_fds[10];
+
+
+    FD_ZERO(read_fds);
+	FD_ZERO(write_fds);
     file.open(line);
     ss = serversetup(file);
     cout << ss[0].name << " " << ss[0].addr<< "::"<< ss[0].port << endl;
-    servers(ss, fds);
+    servers(ss, fds, read_fds, write_fds, maxfd);
 
     
-
-
     
     while (1)
     {
@@ -176,7 +189,7 @@ int main(int argc, char **argv)
         //     fds[i].fd = ss[i].sockfd;
         //     fds[i].events = POLLIN;
         // }
-        int rc = poll(fds, ss.size(),-1);
+        int rc = poll(fds, ss.size() + 1,-1);
         if (rc < 0)
         {
             perror("  poll() failed");
@@ -188,26 +201,32 @@ int main(int argc, char **argv)
             printf("  poll() timed out.  End program.\n");
             break;
         }
+        // int rc = 0;
+        // if((rc = select(maxfd + 1, read_fds, write_fds, NULL, NULL)) < 0)
+		// 	perror("select");
+        cout << "poll return: " << rc << std::endl;
         for (int i = 0; i < ss.size(); i++)
         {
             size_t addrlen = sizeof(ss[i].sockaddr);
 
-            
-            if(fds[i].events == 0)
-                continue;
+            // if(fds[i].events == 0)
+            // if(FD_ISSET(i, &read_fds[i]))
+            //     continue;
+            cout << "efewrfewf" << endl ;
+            // if(!FD_ISSET(ss[i].sockfd, &read_fds[i]))
             if (fds[i].events != POLLIN)
             {
-                printf("  Error! revents = %d\n", fds[i].revents);
+                printf("Error! revents = %d\n", fds[i].revents);
                 break;
             }
-            if (fds[i].fd == ss[i].sockfd && fds[i].events & POLLIN)
+            // if(FD_ISSET(ss[i].sockfd, &read_fds[i]))
+            if (fds[i].revents != 0 && fds[i].events & POLLIN)
             {
                 int connection = accept(ss[i].sockfd, (struct sockaddr*)&ss[i].sockaddr, (socklen_t*)&addrlen);
                 if (connection < 0) {
                     std::cout << "Failed to grab connection= "<< i <<". errno: " << errno << std::endl;
                     continue;
                 }
-                cout << "efewrfewf" << endl ;
                 Requeststup(connection, req);
 
 
