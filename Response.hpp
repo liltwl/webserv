@@ -1,6 +1,6 @@
 #include "webserv.hpp"
 using namespace std;
-int getDate()
+char *getDate()
 {
     time_t now = time(0);
     char* dt = ctime(&now);
@@ -41,14 +41,17 @@ class Response
         int    status;
         string path;
     public:
-    //const Request &req;
-    Response(const Request &_req, string &contentype , int contentlength)// : req(_req)
+    Request &req;
+    Response();
+    Response( Request &_req, string &contentype , int contentlength)
     {
+        this->req = _req;
         this->header = Header(contentype, contentlength);
-        this->path = _req.location;
+        this->firstline = "HTTP/1.1 200 OK\r\n";
         this->methode = _req.rqmethod;
-        this->status = 
-        body = "";
+        this->path = _req.location;
+        this->status = 200;
+        this->body = "";
     };
 
 
