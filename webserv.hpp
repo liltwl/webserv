@@ -28,6 +28,12 @@
 using namespace std;
 
 
+
+typedef struct  location{
+    string root;
+    vector<string> methods;
+}              loc;
+
 class server
 {
     public:
@@ -38,6 +44,11 @@ class server
         int port;
         string addr;
         string root;
+        int autoindex;
+        int body_limit;
+        vector<string> methods;
+        map<string,loc> location;
+
 
     public:
         server(string _name, int _port, string _addr,string _root) : name(_name), port(_port), addr(_addr), root(_root) {}
@@ -55,6 +66,36 @@ class server
             }
             return *this;
         }
+        
+        void setadd(string add, int _port)
+        {
+            addr = add;
+            port = _port;
+        }
+        void setroot(string _root)
+        {
+            root = _root;
+        }
+        void setname(string m){
+            name = m;
+        }
+        void setlocation(map<string,loc> _l)
+        {
+            location = _l;
+        }
+        void setmethods(vector<string> m)
+        {
+            methods = m;
+        }
+        void setautoindex(int val)
+        {
+            autoindex = val;
+        }
+        void setbody_limit(int val)
+        {
+            body_limit = val;
+        }
+
 };
 
 
@@ -65,7 +106,7 @@ class Request
         string location;
         string vrs;
         map<string, string> headers;
-        vector<string> body;
+        string body;
 
 
         Request(){}
@@ -100,7 +141,7 @@ class Request
         }
         void addbody(string line)
         {
-            body.push_back(line);
+            body= line;
         }
 
         void clear()
