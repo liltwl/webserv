@@ -30,6 +30,27 @@ class Header
         return this->ContentLength;
     }   
 };
+class Statuscode{
+    private:
+        map<string, string> codes;
+    public:
+        Statuscode()
+        {
+            codes["200"] = "OK";
+            codes["404"] = "Not Found";
+            codes["500"] = "Internal Server Error";
+            codes["400"] = "Bad Request";
+            codes["413"] = "Request Entity Too Large";
+            codes["405"] = "Method Not Allowed";
+            codes["403"] = "Forbidden";
+            codes["204"] = "No Content";
+            codes["201"] = "Created";
+        }
+        string get_code(int code)
+        {
+            return ("HTTP/1.1 " + to_string(code) + " " + codes[to_string(code)]);
+        }
+};
 
 class Response
 {
@@ -43,16 +64,15 @@ class Response
     public:
     Request &req;
     Response();
-    Response( Request &_req, string &contentype , int contentlength)
+/*    Response( Request &_req, Header &_header) : req(_req) , header(_header)
     {
         this->req = _req;
-        this->header = Header(contentype, contentlength);
         this->firstline = "HTTP/1.1 200 OK\r\n";
         this->methode = _req.rqmethod;
         this->path = _req.location;
         this->status = 200;
         this->body = "";
-    };
+    };*/
 
 
 };
