@@ -46,6 +46,19 @@ int getnextline(int fd, string &line)
     return (is_valid_fd(fd) == 0 || line.size() == 1? 0 : enf);
 }
 
+int getlenline(int fd, string &line, int len)
+{
+    char delim[len];
+    int enf;
+    int i = 0;
+
+    enf = recv(fd, delim, len, 0);
+    delim[enf] = 0;
+    cout << delim << endl;
+    line = delim;
+    return ( line.size() == 1? 0 : enf);
+}
+
 void Requeststup(int fd, Request& ss)
 {
     string line;
@@ -53,7 +66,6 @@ void Requeststup(int fd, Request& ss)
 
     for(int i = 0;(getnextline(fd, line))> 0; i++)
     {
-        //cout << line << endl;
         str = split(line, ' ');
         if (i == 0)
         {
@@ -66,15 +78,36 @@ void Requeststup(int fd, Request& ss)
             str = split(line, ':');
             ss.headers[str[0]] = str[1].substr(1, str[1].size());
         }
-        //cout << line << endl;
         line.clear();
+    }
+    if(ss.headers.count("Content-Length"))
+    {
+        int len = stoi(ss.headers.find("Content-Length")->second);
+        getlenline(fd, ss.body, len);
     }
     cout << "||||||||||||||||||||||||||||||||||||||||||" << endl;
 }
 
-vector<server> serversetup(std::ifstream &file)
+
+
+
+
+
+vector<string> allow_methodstup(vector<string> str)
 {
-    vector<server> tmp;
+    vector<string> val;
+    for (int i = 1; i < str.size(); i++)
+    {
+        val.push_back(split(str[i], ';')[0]);
+        cout << split(str[i], ';')[0] << " :hada ra ghir method" << endl;
+    }
+
+    return val;
+}
+
+
+void serversetup(vector<server> &tmp,std::ifstream &file)
+{
     vector<string> str;
     server *ss = NULL;
     string line;
@@ -86,37 +119,86 @@ vector<server> serversetup(std::ifstream &file)
         str = split(line, ' ');
         if (!str[0].compare("server"))
         {
+
             if (ss)
             {
-                tmp.push_back(*ss);
-                delete ss;
+                tmp.insert(tmp.begin(), *ss);
+                //delete ss;
                 ss = NULL;
             }
             cout << line << endl;
             ss = new server();
         }
-        if (!str[0].compare("server_name"))
+        else if (!str[0].compare("server_name")&& str.size())
         {
             cout << line << endl;
-            ss->name = split(str[1], ';')[0];
+            ss->setname(split(str[1], ';')[0]);
         }
-        else if (!str[0].compare("listen"))
+        else if (!str[0].compare("listen")&& str.size())
         {
             cout << line << endl;
-            ss->addr = split(str[1], ':')[0];
-            ss->port = stoi(split(str[1], ':')[1]);
+            ss->setadd(split(str[1], ':')[0],stoi(split(str[1], ':')[1]));
         }
+        else if (!str[0].compare("root")&& str.size())
+        {
+            ss->setroot(split(str[1], ';')[0]);
+        }
+        else if (!str[0].compare("allow_methods") && str.size())
+        {
+            cout << line  << " || " << str[1]  << endl;
+            ss->setmethods(allow_methodstup(str));
+        }
+        else if (!str[0].compare("autoindex")&& str.size())
+        {
+            if (split(str[1], ';')[0] == "on")
+                ss->setautoindex(1);
+            else
+                ss->setautoindex(0);
+        }
+        else if (!str[0].compare("client_body_limit")&& str.size())
+        {
+            ss->setbody_limit(stoi(split(str[1], ';')[0]));
+        }
+        else if (!str[0].compare("location")&& str.size())
+        {
+            loc tmp1;
+            string stmp = str[1];
+            for (int j = 0 ; str[0].compare("}"); j++)
+            {
+                getline(file, line, '\n');
+                ft_spaceskip(line);
+                str = split(line, ' ');
+                if (!str[0].compare("root")&& str.size())
+                {
+                    tmp1.root = split(str[1], ';')[0];
+                    cout << tmp1.root << endl;
+                }
+                else if (!str[0].compare("allow_methods")&& str.size())
+                {
+                    tmp1.methods = allow_methodstup(str);
+                }
+            }
+            ss->location[stmp] = tmp1;
+        }
+        else if (!str.empty())
+        {
+            cout << line<< " :others size = " << ss->others.size() << endl;
+            ss->setothers(line);
+        }
+        line.clear();
+        str.clear();
     }
     if (ss)
     {
-        tmp.push_back(*ss);
+        tmp.insert(tmp.begin(), *ss);
         delete ss;
     }
-    return tmp;
+    cout << tmp[0].others.size() << " = " << tmp[0].name  << endl;
+    cout << "|||||||||||||||||||||||*********||||||||||||||||||||||||||||" << endl;
 }
 int guard(int n, string err) { if (n == -1) { cout << (err) << endl; exit(1); } return n; }
 
-void servers(vector<server> &ss,pollfd *fds, fd_set *read_fds,fd_set *write_fds,int &maxfd)
+void servers(vector<server> &ss,pollfd *fds)
 {
     sockaddr_in sockaddr;
     int yes = 1;
@@ -132,8 +214,6 @@ void servers(vector<server> &ss,pollfd *fds, fd_set *read_fds,fd_set *write_fds,
             std::cout << "Failed to create socket. errno: " << errno << std::endl;
             exit(EXIT_FAILURE);
         }
-        if(maxfd < sockfd)
-            maxfd = sockfd;
 
 
         // int flags = guard(fcntl(sockfd, F_GETFL), "could not get flags on TCP listening socket");
@@ -156,9 +236,20 @@ void servers(vector<server> &ss,pollfd *fds, fd_set *read_fds,fd_set *write_fds,
         ss[i].sockaddr = sockaddr;
         fds[i].fd = ss[i].sockfd;
         fds[i].events = POLLIN;
-        FD_SET(sockfd, &read_fds[i]);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 int main(int argc, char **argv)
 {
@@ -169,16 +260,17 @@ int main(int argc, char **argv)
     int maxfd=0;
     pollfd fds[10];
 
-    fd_set read_fds[10];
-	fd_set write_fds[10];
 
 
-    FD_ZERO(read_fds);
-	FD_ZERO(write_fds);
     file.open(line);
-    ss = serversetup(file);
-    cout << ss[0].name << " " << ss[0].addr<< "::"<< ss[0].port << endl;
-    servers(ss, fds, read_fds, write_fds, maxfd);
+    serversetup(ss, file);
+    cout << ss[0].name << " " << ss[0].addr << "::"<<  ss[0].port << ":" << ss[0].others.size() << " : "<< ss[0].location.begin()->first  << endl;
+    for (vector<string>::iterator it = ss[0].others.begin(); it != ss[0].others.end(); it++)
+    {
+        cout <<"other: " << *it <<endl;
+    }
+    servers(ss, fds);
+
 
     
     
@@ -189,7 +281,7 @@ int main(int argc, char **argv)
         //     fds[i].fd = ss[i].sockfd;
         //     fds[i].events = POLLIN;
         // }
-        int rc = poll(fds, ss.size() + 1,-1);
+        int rc = poll(fds, ss.size(),-1);
         if (rc < 0)
         {
             perror("  poll() failed");
@@ -204,22 +296,16 @@ int main(int argc, char **argv)
         // int rc = 0;
         // if((rc = select(maxfd + 1, read_fds, write_fds, NULL, NULL)) < 0)
 		// 	perror("select");
-        cout << "poll return: " << rc << std::endl;
+        // cout << "poll return: " << rc << std::endl;
         for (int i = 0; i < ss.size(); i++)
         {
             size_t addrlen = sizeof(ss[i].sockaddr);
 
-            // if(fds[i].events == 0)
-            // if(FD_ISSET(i, &read_fds[i]))
-            //     continue;
-            cout << "efewrfewf" << endl ;
-            // if(!FD_ISSET(ss[i].sockfd, &read_fds[i]))
             if (fds[i].events != POLLIN)
             {
                 printf("Error! revents = %d\n", fds[i].revents);
                 break;
             }
-            // if(FD_ISSET(ss[i].sockfd, &read_fds[i]))
             if (fds[i].revents != 0 && fds[i].events & POLLIN)
             {
                 int connection = accept(ss[i].sockfd, (struct sockaddr*)&ss[i].sockaddr, (socklen_t*)&addrlen);
@@ -238,6 +324,7 @@ int main(int argc, char **argv)
                 {
                     cout << it->first << ": " << it->second <<endl;
                 }
+                cout << "body :" << req.body << endl;
                 req.clear();
 
                 std::string response = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";

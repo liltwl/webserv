@@ -49,11 +49,18 @@ class server
         vector<string> methods;
         map<string,loc> location;
 
+        vector<string> others;
+
 
     public:
         server(string _name, int _port, string _addr,string _root) : name(_name), port(_port), addr(_addr), root(_root) {}
-        server(){}
-        server(server const& _server) : name(_server.name), port(_server.port), addr(_server.addr), root(_server.root) {}
+        server()
+        {
+
+        }
+        server(server const& _server) : name(_server.name), port(_server.port), addr(_server.addr), root(_server.root) {
+            *this = _server;
+        }
 
         server& operator=(server const& _server)
         {
@@ -63,6 +70,9 @@ class server
                 port = _server.port;
                 addr = _server.addr;
                 root = _server.root;
+                others = _server.others;
+                methods = _server.methods;
+                location = _server.location;
             }
             return *this;
         }
@@ -96,6 +106,16 @@ class server
             body_limit = val;
         }
 
+        void setothers(string &val)
+        {
+            //others[key] = val;
+            others.push_back(val);
+        }
+
+        vector<string>& getmethods()
+        {
+            return methods;
+        }
 };
 
 
