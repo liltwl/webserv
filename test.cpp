@@ -1,4 +1,5 @@
 #include "webserv.hpp"
+#include "Response.hpp"
 
 vector<string> split (const string &s, char delim)
 {
@@ -41,6 +42,7 @@ int getnextline(int fd, string &line)
 
     while ((enf = recv(fd, &delim, 1, 0))> 0 && delim != '\n')
     {
+        //if (delim != 13)
         line.push_back(delim); 
     }
     return (is_valid_fd(fd) == 0 || line.size() == 1? 0 : enf);
@@ -53,7 +55,7 @@ int getlenline(int fd, string &line, int len)
     int i = 0;
 
     enf = recv(fd, delim, len, 0);
-    delim[enf] = 0;
+    delim[len] = 0;
     cout << delim << endl;
     line = delim;
     return ( line.size() == 1? 0 : enf);
@@ -76,7 +78,7 @@ void Requeststup(int fd, Request& ss)
         else
         {
             str = split(line, ':');
-            ss.headers[str[0]] = str[1].substr(1, str[1].size());
+            ss.headers[str[0]] = str[1].substr(1, str[1].size() - 2);
         }
         line.clear();
     }
@@ -216,8 +218,8 @@ void servers(vector<server> &ss,pollfd *fds)
         }
 
 
-        // int flags = guard(fcntl(sockfd, F_GETFL), "could not get flags on TCP listening socket");
-        // guard(fcntl(sockfd, F_SETFL, O_NONBLOCK | flags), "could not set TCP listening socket to be non-blocking");
+        int flags = guard(fcntl(sockfd, F_GETFL), "could not get flags on TCP listening socket");
+        guard(fcntl(sockfd, F_SETFL, O_NONBLOCK | flags), "could not set TCP listening socket to be non-blocking");
         // setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
         // ioctl(sockfd, FIONBIO, (char *)&yes);
 
@@ -228,7 +230,7 @@ void servers(vector<server> &ss,pollfd *fds)
             std::cout << "Failed to bind to port "<< ss[0].port <<". errno: " << errno << std::endl;
             exit(EXIT_FAILURE);
         }
-        if (listen(sockfd, 10) < 0) 
+        if (listen(sockfd, 255) < 0) 
         {
             std::cout << "Failed to listen on socket. errno: " << errno << std::endl;
             exit(EXIT_FAILURE);
@@ -258,7 +260,7 @@ int main(int argc, char **argv)
     vector<server> ss;
     Request req;
     int maxfd=0;
-    pollfd fds[10];
+    pollfd fds[100];
 
 
 
@@ -309,26 +311,60 @@ int main(int argc, char **argv)
             if (fds[i].revents != 0 && fds[i].events & POLLIN)
             {
                 int connection = accept(ss[i].sockfd, (struct sockaddr*)&ss[i].sockaddr, (socklen_t*)&addrlen);
+                
                 if (connection < 0) {
                     std::cout << "Failed to grab connection= "<< i <<". errno: " << errno << std::endl;
                     continue;
                 }
-                Requeststup(connection, req);
-
-
-                //cout <<req.rqmethod << " " << req.location << " " << req.headers.begin()->first <<endl;
-                // size_t bytesRead = read(connection, buffer, 1000);
-                // std::cout << "The message was: " << buffer<< endl;
-                cout << req.rqmethod << " " << req.location << " " << req.vrs << endl;  //hadi dyal rqst lbghiti tpintehom
-                for (map<string, string>::iterator it = req.headers.begin(); it != req.headers.end(); it++)
+                
+                pollfd fds1;
+                fds1.fd = connection;
+                for (size_t j = 0; j == 0 ;)\
                 {
-                    cout << it->first << ": " << it->second <<endl;
-                }
-                cout << "body :" << req.body << endl;
-                req.clear();
+                    fds1.events = POLLIN;
+                    int rcc = poll(&fds1, 1,100);
+                    if (rcc < 0)
+                    {
+                        perror("  poll() failed");
+                        break;
+                    }
+                    if (rcc == 0)
+                    {
+                        printf("  poll() timed out.\n");
+                        j = 1;
+                        continue;
+                    }
+                    if (fds1.events != 0 && fds1.events & POLLIN)
+                        Requeststup(connection, req);
 
-                std::string response = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
-                send(connection, response.c_str(), response.size(), 0);
+
+                    //cout <<req.rqmethod << " " << req.location << " " << req.headers.begin()->first <<endl;
+                    // size_t bytesRead = read(connection, buffer, 1000);
+                    // std::cout << "The message was: " << buffer<< endl;
+                    cout << req.rqmethod << " " << req.location << " " << req.vrs << endl;  //hadi dyal rqst lbghiti tpintehom
+                    for (map<string, string>::iterator it = req.headers.begin(); it != req.headers.end(); it++)
+                    {
+                        cout << it->first << ": " << it->second <<endl;
+                    }
+                    cout << "body :" << req.body << endl;
+                    cout << "*" << req.headers["Connection"] << "*----" << endl;
+                    fds1.events = POLLOUT;
+                    Response response(req, ss[i]);
+                    rcc = poll(&fds1, 1,100);
+                    if (rcc == 0)
+                    {
+                        printf("  poll() timed out.\n");
+                        j = 1;
+                        continue;
+                    }
+                    if (fds1.events != 0 && fds1.events & POLLOUT)
+                        send(connection, response.respond().c_str(), response.get_response_size(), 0);
+                    if (!(req.headers.count("Connection") && req.headers.at("Connection") == "keep-alive"))
+                    {
+                        j = 1;
+                    }
+                    req.clear();
+                }
                 cout <<endl << "______________________" << endl;
                 close(connection);
             }

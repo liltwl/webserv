@@ -53,7 +53,6 @@ class server
 
 
     public:
-        server(string _name, int _port, string _addr,string _root) : name(_name), port(_port), addr(_addr), root(_root) {}
         server()
         {
 

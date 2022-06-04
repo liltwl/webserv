@@ -20,8 +20,11 @@ $(NAME): $(FIL)
 run1: $(NAME)
 	./webserv 1.config
 
-run2: $(NAME)
+run: $(NAME)
 	./webserv dflt.config
+
+run2: $(NAME)
+	./webserv 2.config
 
 fclean:
 	rm -f $(NAME)
