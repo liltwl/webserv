@@ -38,27 +38,34 @@ int is_valid_fd(int fd)
 int getnextline(int fd, string &line)
 {
     char delim;
-    int enf;
+    int enf = 0;
 
-    while ((enf = recv(fd, &delim, 1, 0))> 0 && delim != '\n')
+    while ((enf += recv(fd, &delim, 1, 0))> 0 && delim != 13 && delim != 0)
     {
         //if (delim != 13)
         line.push_back(delim); 
     }
-    return (is_valid_fd(fd) == 0 || line.size() == 1? 0 : enf);
+    enf = recv(fd, &delim, 1, 0);
+    return (delim == 0 || line.size() == 0 ? 0 : enf);
 }
 
 int getlenline(int fd, string &line, int len)
 {
-    char delim[len];
-    int enf;
+    char delim;
+    int enf = 0;
     int i = 0;
 
-    enf = recv(fd, delim, len, 0);
-    delim[len] = 0;
-    cout << delim << endl;
-    line = delim;
-    return ( line.size() == 1? 0 : enf);
+    // enf = recv(fd, delim, len, 0);
+    // delim[enf] = 0;
+
+    while ((enf += recv(fd, &delim, 1, 0))> 0 && i < len)
+    {
+        i++;
+        if (delim != '\r')
+            line.push_back(delim); 
+    }
+    //line = delim;
+    return ( delim == 0 && enf == 1? 0 : i);
 }
 
 void Requeststup(int fd, Request& ss)
@@ -78,14 +85,39 @@ void Requeststup(int fd, Request& ss)
         else
         {
             str = split(line, ':');
-            ss.headers[str[0]] = str[1].substr(1, str[1].size() - 2);
+            ss.headers[str[0]] = str[1].substr(1, str[1].size());
         }
         line.clear();
     }
-    if(ss.headers.count("Content-Length"))
+
+    if(ss.headers.count("Transfer-Encoding"))
+    {
+        int req_len = stoi(ss.headers.find("Content-Length")->second);
+        int body_len = 0;
+        int k =1; 
+        while (body_len < req_len-1)
+        {
+            cout << "FErferf" << endl;
+            string stmp ;
+            getnextline(fd, stmp);
+            int len = stol(stmp, nullptr, 16);
+            if (len == 0)
+            {
+                break;
+            }
+            cout << len << endl;
+            body_len += getlenline(fd, ss.body, len);
+        }
+        cout << body_len <<" == " << req_len << endl;
+    }
+    else if(ss.headers.count("Content-Length"))
     {
         int len = stoi(ss.headers.find("Content-Length")->second);
         getlenline(fd, ss.body, len);
+        if (getlenline(fd, line, 1))
+        {
+            cout << "Content-Length too small " << endl;
+        }
     }
     cout << "||||||||||||||||||||||||||||||||||||||||||" << endl;
 }
@@ -267,10 +299,12 @@ int main(int argc, char **argv)
     file.open(line);
     serversetup(ss, file);
     cout << ss[0].name << " " << ss[0].addr << "::"<<  ss[0].port << ":" << ss[0].others.size() << " : "<< ss[0].location.begin()->first  << endl;
-    for (vector<string>::iterator it = ss[0].others.begin(); it != ss[0].others.end(); it++)
-    {
-        cout <<"other: " << *it <<endl;
-    }
+    map<int ,string> trr =ss[0].geterrorpages();
+    
+    // for (map<int ,string>::iterator it = trr.begin(); it != trr.end(); it++)
+    // {
+    //     cout << it->first <<"other: " << it->second <<endl;
+    // }
     servers(ss, fds);
 
 
@@ -322,7 +356,7 @@ int main(int argc, char **argv)
                 for (size_t j = 0; j == 0 ;)\
                 {
                     fds1.events = POLLIN;
-                    int rcc = poll(&fds1, 1,100);
+                    int rcc = poll(&fds1, 1,1000);
                     if (rcc < 0)
                     {
                         perror("  poll() failed");
@@ -336,8 +370,8 @@ int main(int argc, char **argv)
                     }
                     if (fds1.events != 0 && fds1.events & POLLIN)
                         Requeststup(connection, req);
-
-
+                    if (req.empty())
+                        continue;
                     //cout <<req.rqmethod << " " << req.location << " " << req.headers.begin()->first <<endl;
                     // size_t bytesRead = read(connection, buffer, 1000);
                     // std::cout << "The message was: " << buffer<< endl;
@@ -357,6 +391,7 @@ int main(int argc, char **argv)
                         j = 1;
                         continue;
                     }
+                    cout << response.respond().size() << " ====== " << response.get_response_size()<< endl;
                     if (fds1.events != 0 && fds1.events & POLLOUT)
                         send(connection, response.respond().c_str(), response.get_response_size(), 0);
                     if (!(req.headers.count("Connection") && req.headers.at("Connection") == "keep-alive"))
@@ -364,9 +399,10 @@ int main(int argc, char **argv)
                         j = 1;
                     }
                     req.clear();
+                    //response.clear();
                 }
+                close (connection);
                 cout <<endl << "______________________" << endl;
-                close(connection);
             }
             else{
                 ;

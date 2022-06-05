@@ -177,14 +177,17 @@ class Response
         response += "Content-Type: " + this->header.get_ContemnentType() + "\r\n";
         response += "\r\n";
         response += this->body;
-        cout << endl << endl << response << endl;
+        //cout << endl << endl << response << endl;
         return response;
     };
     int get_response_size()
     {
         return (this->respond().size());
     }
-
+    void clear()
+    {
+        
+    }
 
 
 };

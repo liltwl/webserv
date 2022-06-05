@@ -27,7 +27,7 @@
 
 using namespace std;
 
-
+vector<string> split (const string &s, char delim);
 
 typedef struct  location{
     string root;
@@ -115,6 +115,31 @@ class server
         {
             return methods;
         }
+
+        map<int, string> geterrorpages()
+        {
+            map<int, string> tmp;
+        
+            for (int i = 0; i < others.size();i++)
+            {
+                vector<string> str;
+                string line, val;
+                int key;
+                line = others[i];
+                str = split(line, ' ');
+                if (str[0].compare("error_page") == 0)
+                {
+                    val = str[str.size() - 1].substr(0, str[str.size() - 1].size() - 2);
+                    for (int j = 1; j < str.size() - 1; j++)
+                    {
+                        cout << str[j] << endl;
+                        key = stoi(str[j]);
+                        tmp[key] = val;
+                    }
+                }
+            }
+            return tmp;
+        }
 };
 
 
@@ -170,6 +195,11 @@ class Request
             vrs.clear();
             headers.clear();
             body.clear();
+        }
+        size_t empty()
+        {
+            cout << rqmethod.empty()<< " empty" << endl;
+            return (rqmethod.empty());
         }
 };
 
