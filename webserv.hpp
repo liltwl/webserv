@@ -29,6 +29,10 @@ using namespace std;
 
 vector<string> split (const string &s, char delim);
 
+
+
+
+
 typedef struct  location{
     string root;
     vector<string> methods;
@@ -36,7 +40,7 @@ typedef struct  location{
 
 class server
 {
-    public:
+    public :
         sockaddr_in sockaddr;
         int sockfd;
 
@@ -52,7 +56,7 @@ class server
         vector<string> others;
 
 
-    public:
+    public :
         server()
         {
 
@@ -75,7 +79,10 @@ class server
             }
             return *this;
         }
-        
+        ~server()
+        {
+            close (sockfd);
+        }
         void setadd(string add, int _port)
         {
             addr = add;
@@ -116,6 +123,22 @@ class server
             return methods;
         }
 
+        
+        void set_fd(int _fd)
+        {
+            sockfd = _fd;
+        }
+
+        int get_auind()
+        {
+            return autoindex;
+        }
+
+        string get_name()
+        {
+            return name;
+        }
+
         map<int, string> geterrorpages()
         {
             map<int, string> tmp;
@@ -140,6 +163,39 @@ class server
             }
             return tmp;
         }
+};
+
+
+class client
+{
+    public :
+        int fd;
+        server  *ss;
+    
+    client():fd(0) , ss(NULL){}
+    ~client(){
+        if (fd > 0)
+        close (fd);
+    }
+    void set_fd(int _fd)
+    {
+        fd = _fd;
+    }
+
+    void set_serv(server& _ss)
+    {
+        ss = &_ss;
+    }
+
+    int get_fd()
+    {
+        return fd;
+    }
+
+    server* get_serv()
+    {
+        return ss;
+    }
 };
 
 
