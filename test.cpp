@@ -42,12 +42,10 @@ int getnextline(int fd, string &line)
 
     while ((enf += recv(fd, &delim, 1, 0))> 0 && delim != 13 && delim != 0)
     {
-        cout << delim << ": delim" << endl;
-
         //if (delim != 13)
          line.push_back(delim); 
     }
-    if ( delim != 0 )
+    if ( delim != 0)
         enf = recv(fd, &delim, 1, 0);   //hadi yarabak khasak mazal t9adha 3la hsab error status
     return (delim == 0 || line.size() == 0 ? 0 : enf);
 }
@@ -76,7 +74,6 @@ void Requeststup(int fd, Request& ss)
 
     for(i = 0;(j = getnextline(fd, line))> 0; i++)
     {
-        cout << line << endl;
         if(line.size() == 1) return;
         str = split(line, ' ');
         if (i == 0)
@@ -92,8 +89,8 @@ void Requeststup(int fd, Request& ss)
         }
         line.clear();
     }
-    if (j == 0&& i == 1)
-        return;
+    /*if (j == 0 && i == 1)
+        return;*/
     if(ss.headers.count("Content-Length") && ss.headers.count("Transfer-Encoding"))
     {
         int req_len = stoi(ss.headers.find("Content-Length")->second);
@@ -252,8 +249,8 @@ void servers(vector<server> &ss,pollfd *fds)
         }
 
 
-        // int flags = guard(fcntl(sockfd, F_GETFL), "could not get flags on TCP listening socket");
-        // guard(fcntl(sockfd, F_SETFL, O_NONBLOCK | flags), "could not set TCP listening socket to be non-blocking");
+        int flags = guard(fcntl(sockfd, F_GETFL), "could not get flags on TCP listening socket");
+        guard(fcntl(sockfd, F_SETFL, O_NONBLOCK | flags), "could not set TCP listening socket to be non-blocking");
         // setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
         // ioctl(sockfd, FIONBIO, (char *)&yes);
 
@@ -275,13 +272,11 @@ void servers(vector<server> &ss,pollfd *fds)
     }
 }
 
-void addclienttoserver(server &ss,vector<client>& clients, int k,pollfd *fds)
+void addclienttoserver(server &ss,vector<client>& clients, int k)
 {
     string str = "client";
     client stmp;
 
-    fds->fd = k;
-    fds->events = POLLIN;
     stmp.set_fd(k);
     stmp.set_serv(ss);
     clients.push_back(stmp);
@@ -292,6 +287,7 @@ void addclienttoserver(server &ss,vector<client>& clients, int k,pollfd *fds)
 
 void delete_client(vector<client>& clients, int i)
 {
+    cout << "Deleting client " << i << endl;
     vector<client>::iterator it = clients.begin();
     for (int j = 0; j < i && it != clients.end();j++, it++);
     if (it != clients.end())
@@ -348,54 +344,50 @@ int main(int argc, char **argv)
         }
         for (int i = ss.size(), j = 0; i < clients.size() + ss.size(); i++, j++)
         {
-                    // fds1.events = POLLIN;
-                    // int rcc = poll(&fds1, 1,1000);
-                    // cout << "yoooo" << endl;
-                    // if (rcc < 0)
-                    // {
-                    //     perror("  pollin() failed");
-                    //     break;
-                    // }
-                    // if (rcc == 0)
-                    // {
-                    //     printf("  pollin() timed out.\n");
-                    //     j = 1;
-                    //     continue;
-                    // }
-                    if (fds[i].events != 0 && fds[i].events & POLLIN)
-                    {
-                    //     if (!req.empty())
-                    //         req.clear();
-                        Requeststup(clients[j].get_fd(), req);
-                        if (req.empty())
-                            return 0;
-                    
-
-                        cout << req.rqmethod << " " << req.location << " " << req.vrs << endl;  //hadi dyal rqst lbghiti tpintehom
-                        for (map<string, string>::iterator it = req.headers.begin(); it != req.headers.end(); it++)
-                        {
-                            cout << it->first << ": " << it->second <<endl;
-                        }
-                        //cout << "body :" << req.body << endl;
-                        cout << "*" << req.headers["Connection"] << "*----" << endl;
-                        fds[i].events = POLLOUT;
-                    }
-                    // std::ofstream newfile;
-                    // newfile.open("wwwww.png", std::ios::trunc);
-                    // newfile << req.body;
-                    else if (fds[i].events != 0 && fds[i].events & POLLOUT)
-                    {
-                        Response response(req, *(clients[j].get_serv()));
-                        cout << response.respond().size() << " ====== " << response.get_response_size()<< endl;
-                        send(fds[i].fd, response.respond().c_str(), response.get_response_size(), 0);
-                        fds[i].events = POLLIN;
-                        if (!(req.headers.count("Connection") && req.headers.at("Connection") == "keep-alive"))
-                        {
-                            delete_client(clients, j);//ss.e
-                        }
-                    }
-                    //response.clear();
+            if (fds[i].revents != 0 && fds[i].revents & POLLIN)
+            {
+                cout << j << ": index :";
+                if (!req.empty())
+                    req.clear();
+                Requeststup(fds[i].fd, req);
+                if (req.empty())
+                    continue ;
+                cout << req.rqmethod << " " << req.location << " " << req.vrs << endl;  //hadi dyal rqst lbghiti tpintehom
+                for (map<string, string>::iterator it = req.headers.begin(); it != req.headers.end(); it++)
+                {
+                    cout << it->first << ": " << it->second <<endl;
+                }
+                //cout << "body :" << req.body << endl;
+                cout << "*" << req.headers["Connection"] << "*----" << endl;
+                fds[i].events = POLLOUT;
             }
+            // std::ofstream newfile;
+            // newfile.open("wwwww.png", std::ios::trunc);
+            // newfile << req.body;
+            else if (fds[i].revents != 0 && fds[i].revents & POLLOUT)
+            {
+
+
+                                /*********Response*********/
+
+                Response response(req, *(clients[j].get_serv()));
+                cout << response.respond().size() << " ====== " << response.get_response_size()<< endl;
+                send(fds[i].fd, response.respond().c_str(), response.get_response_size(), 0);
+                
+                
+                                /******************/
+
+
+                fds[i].events = POLLIN;
+                if (!(req.headers.count("Connection") && req.headers.at("Connection") == "keep-alive"))
+                {
+                    close (fds[i].fd);
+                    fds[i].fd = 0;
+                    delete_client(clients, j);//ss.e
+                }
+            }
+            //response.clear();
+        }
         for (int i = 0; i < ss.size(); i++)
         {
             size_t addrlen = sizeof(ss[i].sockaddr);
@@ -405,7 +397,7 @@ int main(int argc, char **argv)
             //     printf("Error! revents = %d\n", fds[i].revents);
             //     break;
             // }
-            if (fds[i].revents != 0 && fds[i].events & POLLIN)
+            if (fds[i].revents != 0 && fds[i].revents & POLLIN)
             {
                 int connection = accept(ss[i].sockfd, (struct sockaddr*)&ss[i].sockaddr, (socklen_t*)&addrlen);
                 
@@ -415,14 +407,13 @@ int main(int argc, char **argv)
                 }
                 
                 pollfd fds1;
-                // fds[ss.size() + clients.size()].fd = connection;
-                addclienttoserver(ss[i], clients, connection, &fds[ss.size() + clients.size()]);
+                fds[ss.size() + clients.size()].fd = connection;
+                fds[ss.size() + clients.size()].events = POLLIN;
+                addclienttoserver(ss[i], clients, connection);
                 cout << "client 200 ok" << endl;
-                //maxfd++;
-                continue;
             }
         }
-                cout<< "__________the_end____________" << endl;
+        cout<< "__________the_end____________" << endl;
     }
     //}
 

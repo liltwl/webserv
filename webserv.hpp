@@ -81,7 +81,7 @@ class server
         }
         ~server()
         {
-            close (sockfd);
+            //close (sockfd);
         }
         void setadd(string add, int _port)
         {
@@ -171,11 +171,12 @@ class client
     public :
         int fd;
         server  *ss;
+        
     
     client():fd(0) , ss(NULL){}
     ~client(){
-        if (fd > 0)
-        close (fd);
+        // if (fd > 0)
+        // close (fd);
     }
     void set_fd(int _fd)
     {
