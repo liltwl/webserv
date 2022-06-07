@@ -40,12 +40,12 @@ int getnextline(int fd, string &line)
     char delim;
     int enf = 0;
 
-    while ((enf += recv(fd, &delim, 1, 0))> 0 && delim != 13 && delim != 0)
+    while ((enf += recv(fd, &delim, 1, 0))> 0 && delim !=13 && delim != 0)
     {
         //if (delim != 13)
-         line.push_back(delim); 
+            line.push_back(delim); 
     }
-    if ( delim != 0)
+    if (delim ==13)
         enf = recv(fd, &delim, 1, 0);   //hadi yarabak khasak mazal t9adha 3la hsab error status
     return (delim == 0 || line.size() == 0 ? 0 : enf);
 }
@@ -74,7 +74,7 @@ void headerpars(int fd, Request& ss)
 
     for(i = 0;(j = getnextline(fd, line))> 0; i++)
     {
-        if(line.size() == 1) return;
+        if(line.size() == 1) return ;
         str = split(line, ' ');
         if (i == 0)
         {
@@ -101,7 +101,7 @@ void Requeststup(int fd, Request& ss, pollfd &fds)
     if (ss.empty_header())
     {
         headerpars(fd, ss);
-        return ;
+        //return ;
     }
     /*if (j == 0 && i == 1)
         return;*/
@@ -114,6 +114,7 @@ void Requeststup(int fd, Request& ss, pollfd &fds)
         {
             string stmp ;
             getnextline(fd, stmp);
+            cout << stmp << endl;
             int len = stol(stmp, nullptr, 16);
             stmp.clear();
             if (len != 0)
@@ -125,9 +126,9 @@ void Requeststup(int fd, Request& ss, pollfd &fds)
             else
                 cout << "content length > body len " << endl;
         }
-        if (ss.get_body_len() == req_len)
+        if (ss.get_body_len() >= req_len)
             fds.events = POLLOUT;
-        cout << body_len <<" == " << req_len << endl;
+        cout <<ss.get_body_len() <<" == " << req_len << endl;
     }
     else if(ss.headers.count("Content-Length"))
     {
@@ -379,7 +380,7 @@ int main(int argc, char **argv)
                 {
                     cout << it->first << ": " << it->second <<endl;
                 }
-                co÷ut << "body :" << clients[j].req.body << endl;
+                // cout << "body :" << clients[j].req.body << endl;
                 cout << "*" << clients[j].req.headers["Connection"] << "*----" << endl;
             }
             else if (fds[i].revents != 0 && fds[i].revents & POLLOUT)
@@ -406,7 +407,8 @@ int main(int argc, char **argv)
                     fds[i].fd = 0;
                     delete_client(clients, j);//ss.e
                 }
-                clients[j].req.clear();
+                else
+                    clients[j].req.clear();
             }
             //response.clear();
         }
