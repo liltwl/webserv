@@ -66,7 +66,7 @@ int getlenline(int fd, string &line, int len)
     return ( delim == 0 && enf == 1? 0 : i);
 }
 
-void Requeststup(int fd, Request& ss)
+void headerpars(int fd, Request& ss)
 {
     string line;
     vector<string> str;
@@ -89,6 +89,20 @@ void Requeststup(int fd, Request& ss)
         }
         line.clear();
     }
+}
+
+void Requeststup(int fd, Request& ss, pollfd &fds)
+{
+    string line;
+    vector<string> str;
+    int i, j;
+
+    cout << "header :" << ss.empty_header() << endl;
+    if (ss.empty_header())
+    {
+        headerpars(fd, ss);
+        return ;
+    }
     /*if (j == 0 && i == 1)
         return;*/
     if(ss.headers.count("Content-Length") && ss.headers.count("Transfer-Encoding"))
@@ -96,18 +110,23 @@ void Requeststup(int fd, Request& ss)
         int req_len = stoi(ss.headers.find("Content-Length")->second);
         int body_len = 0;
         int k =1; 
-        while (body_len < req_len-1)
+        if (ss.get_body_len() < req_len)
         {
             string stmp ;
             getnextline(fd, stmp);
             int len = stol(stmp, nullptr, 16);
-            if (len == 0)
+            stmp.clear();
+            if (len != 0)
             {
-                break;
+                cout << len << endl;
+                body_len += getlenline(fd, stmp, len);
+                ss.addbody(stmp, body_len);
             }
-            cout << len << endl;
-            body_len += getlenline(fd, ss.body, len);
+            else
+                cout << "content length > body len " << endl;
         }
+        if (ss.get_body_len() == req_len)
+            fds.events = POLLOUT;
         cout << body_len <<" == " << req_len << endl;
     }
     else if(ss.headers.count("Content-Length"))
@@ -116,9 +135,12 @@ void Requeststup(int fd, Request& ss)
         getlenline(fd, ss.body, len);
         if (getlenline(fd, line, 1))
         {
-            cout << "Content-Length too small " << endl;
+            cout << "Content-Length < content len " << endl;
         }
+        fds.events = POLLOUT;
     }
+    else
+        fds.events = POLLOUT;
     cout << "||||||||||||||||||||||||||||||||||||||||||" << endl;
 }
 
@@ -325,7 +347,7 @@ int main(int argc, char **argv)
     
     
     while (1)
-    {
+    {   
         for (int i = 0; i < ss.size() ; i++)
         {
             fds[i].events = POLLIN;
@@ -347,30 +369,29 @@ int main(int argc, char **argv)
             if (fds[i].revents != 0 && fds[i].revents & POLLIN)
             {
                 cout << j << ": index :";
-                if (!req.empty())
-                    req.clear();
-                Requeststup(fds[i].fd, req);
-                if (req.empty())
-                    continue ;
-                cout << req.rqmethod << " " << req.location << " " << req.vrs << endl;  //hadi dyal rqst lbghiti tpintehom
-                for (map<string, string>::iterator it = req.headers.begin(); it != req.headers.end(); it++)
+                // if (!req.empty())
+                //     req.clear();
+                Requeststup(fds[i].fd, clients[j].req, fds[i]);
+                if (clients[j].req.empty())
+                    continue;
+                cout << clients[j].req.rqmethod << " " << clients[j].req.location << " " << clients[j].req.vrs << endl;  //hadi dyal rqst lbghiti tpintehom
+                for (map<string, string>::iterator it = clients[j].req.headers.begin(); it != clients[j].req.headers.end(); it++)
                 {
                     cout << it->first << ": " << it->second <<endl;
                 }
-                //cout << "body :" << req.body << endl;
-                cout << "*" << req.headers["Connection"] << "*----" << endl;
-                fds[i].events = POLLOUT;
+                co÷ut << "body :" << clients[j].req.body << endl;
+                cout << "*" << clients[j].req.headers["Connection"] << "*----" << endl;
             }
-            // std::ofstream newfile;
-            // newfile.open("wwwww.png", std::ios::trunc);
-            // newfile << req.body;
             else if (fds[i].revents != 0 && fds[i].revents & POLLOUT)
             {
 
+                std::ofstream newfile;
+                newfile.open("wwwww.png", std::ios::trunc);
+                newfile << clients[j].req.body;
 
                                 /*********Response*********/
 
-                Response response(req, *(clients[j].get_serv()));
+                Response response(clients[j].req, *(clients[j].get_serv()));
                 cout << response.respond().size() << " ====== " << response.get_response_size()<< endl;
                 send(fds[i].fd, response.respond().c_str(), response.get_response_size(), 0);
                 
@@ -379,12 +400,13 @@ int main(int argc, char **argv)
 
 
                 fds[i].events = POLLIN;
-                if (!(req.headers.count("Connection") && req.headers.at("Connection") == "keep-alive"))
+                if (!(clients[j].req.headers.count("Connection") && clients[j].req.headers.at("Connection") == "keep-alive"))
                 {
                     close (fds[i].fd);
                     fds[i].fd = 0;
                     delete_client(clients, j);//ss.e
                 }
+                clients[j].req.clear();
             }
             //response.clear();
         }

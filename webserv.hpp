@@ -166,38 +166,6 @@ class server
 };
 
 
-class client
-{
-    public :
-        int fd;
-        server  *ss;
-        
-    
-    client():fd(0) , ss(NULL){}
-    ~client(){
-        // if (fd > 0)
-        // close (fd);
-    }
-    void set_fd(int _fd)
-    {
-        fd = _fd;
-    }
-
-    void set_serv(server& _ss)
-    {
-        ss = &_ss;
-    }
-
-    int get_fd()
-    {
-        return fd;
-    }
-
-    server* get_serv()
-    {
-        return ss;
-    }
-};
 
 
 class Request
@@ -208,9 +176,10 @@ class Request
         string vrs;
         map<string, string> headers;
         string body;
+        size_t body_len;
 
 
-        Request(){}
+        Request(): body_len(0) {}
         Request& operator=(Request const& other)
         {
             if (this != &other)
@@ -240,9 +209,10 @@ class Request
         {
             headers[name] = value;
         }
-        void addbody(string line)
+        void addbody(string line, size_t len)
         {
-            body= line;
+            body += line;
+            body_len += len;
         }
 
         void clear()
@@ -253,6 +223,18 @@ class Request
             headers.clear();
             body.clear();
         }
+
+        int empty_header()
+        {
+            if (rqmethod.empty() || location.empty() || vrs.empty())
+                return 1;
+            return 0;
+        }
+
+        size_t get_body_len()
+        {
+            return body_len;
+        }
         size_t empty()
         {
             cout << rqmethod.empty()<< " empty" << endl;
@@ -260,3 +242,36 @@ class Request
         }
 };
 
+
+class client
+{
+    public :
+        int fd;
+        server  *ss;
+        Request req;
+    
+    client():fd(0) , ss(NULL){}
+    ~client(){
+        // if (fd > 0)
+        // close (fd);
+    }
+    void set_fd(int _fd)
+    {
+        fd = _fd;
+    }
+
+    void set_serv(server& _ss)
+    {
+        ss = &_ss;
+    }
+
+    int get_fd()
+    {
+        return fd;
+    }
+
+    server* get_serv()
+    {
+        return ss;
+    }
+};
