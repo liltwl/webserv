@@ -1,5 +1,7 @@
 #include "webserv.hpp"
 #include <dirent.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 using namespace std;
 string getDate()
 {
@@ -7,27 +9,46 @@ string getDate()
     string dt = ctime(&now);
     return dt;
 }
-int handlerequest(Request &req, server &serv)
+int finddir(string path) // this function ruturns 0 i it's not a file nor a directory 1 uif it's a file and 2 if it's dir
 {
-    //cout << endl << "request location :" << req.location;
-    if(req.body.size() != atoi(req.headers["Content-Length"].c_str()))
+    struct stat path_stat;
+    stat(path.c_str(), &path_stat);
+    if(S_ISREG(path_stat.st_mode))
     {
-        return 413;
+        return(1);
     }
-    if(serv.location.count(req.location) == 0 && req.location != "/")
+    else if(S_ISDIR(path_stat.st_mode))
     {
-        return 404;
+        return(2);
     }
-    if(
-        (serv.location.find(req.location) != serv.location.end() && find(serv.location[req.location].methods.begin(),serv.location[req.location].methods.end(),req.rqmethod) == serv.location[req.location].methods.end())
-        || (req.location  == "/" && find(serv.methods.begin(),serv.methods.end(),req.rqmethod) == serv.methods.end())
-    )
-    {
- 
-        return 405;
-    }
-    return(200);
+    else
+        return 0;
 }
+
+string findlocation(Request &req, server &serv)
+{
+    string path;
+    int matchsize = 0;
+    for(map<string,loc>::iterator it = serv.location.begin(); it !=  serv.location.end(); it++)
+    {
+        if(strncmp(req.location.c_str(),it->first.c_str(), it->first.size()) == 0 && matchsize < it->first.size()) // chack if the request location exist in the config file locations and icrement i[0]
+        {
+            path = it->first ;
+            matchsize = it->first.size();
+
+//            if(find(it->second.methods.begin(), it->second.methods.end(),req.rqmethod) !=  it->second.methods.end() )// if he found the location it chacke if the method is allowed in the specified location and acrement i[1]
+  //              i[1]++;
+            //return(it->first);
+        }
+    }
+    if(matchsize > 0)
+        return(path);
+
+    return (serv.root);
+
+
+}
+
 
 class Header
 {
@@ -68,6 +89,7 @@ class Statuscode{
             codes["405"] = "Method Not Allowed";
             codes["204"] = "No Content";
             codes["201"] = "Created";
+            codes["403"] = "Forbidden";
         }
         string get_code(int code)
         {
@@ -116,7 +138,7 @@ string handleGet(Request &req, server &serv, int &status)
         DIR *dir;
         if(opendir(req.location.c_str()) == NULL || status == 404)
         {
-            status = 404;
+            status = 498;
             return(renderror(404));
         }
     }
@@ -138,9 +160,9 @@ class Response
         Statuscode code;
         string firstline;
         string methode;
+        string rlocation;
         Header header;
-        string 
-        body;
+        string body;
         int    status;
         string path;
     public:
@@ -150,7 +172,7 @@ class Response
     Response( Request &_req, server &_serv) : req(_req) , serv(_serv) , header(Header("text/html", 0))
     {
         this->req = _req;
-        this->status = handlerequest(req, serv);
+        this->status = this->handlerequest(req, serv);
         /*if(status !=  200)
         {
             this->body = renderror(this->status);
@@ -166,6 +188,9 @@ class Response
         //this->header = Header("Text", 0);
         //this->body = ""; //this->path ;
     };
+    int handlerequest(Request &req, server &serv);
+
+    int handleGet();
     std::string respond()
     {
         string response = firstline + "\r\n";
@@ -184,10 +209,91 @@ class Response
     {
         return (this->respond().size());
     }
-    void clear()
-    {
-        
-    }
+
 
 
 };
+bool checkmethod(server &serv,string location ,string Method)
+{
+    if(location == serv.root)
+    {
+        if(find(serv.methods.begin(), serv.methods.end(),Method) !=  serv.methods.end()) 
+        {
+                return true;
+        }
+        else 
+                return false;  
+    }// if he found the location it chacke if the method is allowed in the specified location and acrement i[1]
+    else if(find(serv.location[location].methods.begin(),serv.location[location].methods.end(),Method) != serv.location[location].methods.end())
+        return true;
+    else
+        return false;
+}
+
+int Response::handlerequest(Request &req, server &serv)
+{
+    //string reallocation
+    /*if(req.body.size() != atoi(req.headers["Content-Length"].c_str()))
+    {
+        return 413;
+    }*/
+    //int i[2] = {0,0};
+
+    
+    //std::vector<string>::iterator l;
+    /*for(map<string,loc>::iterator it = serv.location.begin(); it !=  serv.location.end(); it++)
+    {
+        if(strncmp(req.location.c_str(),it->first.c_str(), it->first.size()) == 0) // chack if the request location exist in the config file locations and icrement i[0]
+        {
+            if(find(it->second.methods.begin(), it->second.methods.end(),req.rqmethod) !=  it->second.methods.end() )// if he found the location it chacke if the method is allowed in the specified location and acrement i[1]
+                i[1]++;
+            i[0]++;
+        }
+    }
+    if(i[0] == 0 && req.location != "/")
+    {
+        cout << "l9lwiiiiiiiiiiiiuiiuiuiuiuiuiuiuiuiuiupfg[iuoptiytjyeiostyjesioyjeiojyes" << endl;
+        return 404;
+    }
+    if(req.location == "/")
+    {
+        if(find(serv.methods.begin(), serv.methods.end(),req.rqmethod) !=  serv.methods.end())
+            i[1]++;
+    }
+    if(i[1] == 0)
+    {
+        //cout << "l9lwiiiiiiiiiiiiuiiuiuiuiuiuiuiuiuiuiupfg[iuoptiytjyeiostyjesioyjeiojyes" << endl;
+        return 405;
+    }*/
+    this->rlocation = findlocation(req,serv);
+    if(checkmethod(serv,this->rlocation,req.rqmethod) == false)
+    {
+        return 405;
+    }
+
+    cout << "this>rlocation ::::::::::::::::" << this->rlocation<< endl;
+    if(req.rqmethod == "GET")
+    {
+        return handleGet();
+    }
+    return(200);
+};
+int Response::handleGet()
+{
+    //string path = this->rlocation + this->req.location; 
+    if(finddir(req.location) == 0)
+    {
+        return(404);
+    }
+    if(finddir(path) == 2)
+    {
+        if(serv.autoindex == 0)
+        {
+            return 403;
+        }
+    }
+
+    //cout << "ur mthode is GET" << endl << endl << endl;
+    //cout << this->req.location  << "<< location is"<< endl;
+    return(205);
+}
