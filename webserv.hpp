@@ -189,6 +189,7 @@ class Request
                 vrs = other.vrs;
                 headers = other.headers;
                 body = other.body;
+                body_len = other.body_len;
             }
             return *this;
         }
@@ -222,6 +223,7 @@ class Request
             vrs.clear();
             headers.clear();
             body.clear();
+            body_len = 0;
         }
 
         int empty_header()
