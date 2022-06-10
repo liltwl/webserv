@@ -131,7 +131,7 @@ string renderror(int error)
         return("undefined status");
 
 }
-string handleGet(Request &req, server &serv, int &status)
+string handlgfgfgfgfgeGet(Request &req, server &serv, int &status)
 {
     if(strcmp(req.location.c_str(), "/") == 0)
     {
@@ -139,12 +139,12 @@ string handleGet(Request &req, server &serv, int &status)
         if(opendir(req.location.c_str()) == NULL || status == 404)
         {
             status = 498;
-            return(renderror(404));
+            return(renderror(444));
         }
     }
     return(renderpage("./www/html/test.html"));
 }
-string generatebody(Request &req, server &serv, int *status)
+/*string generatebody(Request &req, server &serv, int *status)
 {
     string body;
     if(req.rqmethod == "GET" )
@@ -153,7 +153,7 @@ string generatebody(Request &req, server &serv, int *status)
     }
     else 
         return("methode not yet implemented");
-}
+}*/
 class Response
 {
     private:
@@ -178,7 +178,7 @@ class Response
             this->body = renderror(this->status);
         }
         else*/
-        this->body =renderror(this->status);
+        //this->body =renderror(this->status);
         //this->body = generatebody(req, serv, &status);
     
         this->firstline = code.get_code(status);
@@ -191,6 +191,7 @@ class Response
     int handlerequest(Request &req, server &serv);
 
     int handleGet();
+    string renderindex(string path);
     std::string respond()
     {
         string response = firstline + "\r\n";
@@ -239,7 +240,7 @@ int Response::handlerequest(Request &req, server &serv)
     }*/
     //int i[2] = {0,0};
 
-    
+   
     //std::vector<string>::iterator l;
     /*for(map<string,loc>::iterator it = serv.location.begin(); it !=  serv.location.end(); it++)
     {
@@ -274,23 +275,56 @@ int Response::handlerequest(Request &req, server &serv)
     cout << "this>rlocation ::::::::::::::::" << this->rlocation<< endl;
     if(req.rqmethod == "GET")
     {
-        return handleGet();
+        return this->handleGet();
     }
     return(200);
 };
+string Response::renderindex(string path)
+{
+    ifstream f("autoindex.txt");
+    ofstream out("autoindex.txt");
+    string str;
+    DIR *dr;
+    struct dirent *e;
+    dr = opendir(path.c_str());
+    this->body = "<html>\n<head>\n<body>\n<table>\n";
+    if(dr)
+    {
+        
+        while((e = readdir(dr)) != false)
+        {
+            this->body += string("<br>") + e->d_name;
+            
+        }   
+    }
+    this->body += "</table>\n</body>\n</head>\n</html>\n";
+    closedir(dr);
+    return(this->body);
+}
 int Response::handleGet()
 {
-    //string path = this->rlocation + this->req.location; 
-    if(finddir(req.location) == 0)
+    string path = this->serv.location[this->rlocation].root +   req.location; 
+    cout << path << endl << endl << endl<< endl<< endl;
+    if(finddir(path) == 0 )
     {
+        
         return(404);
+ 
     }
     if(finddir(path) == 2)
     {
-        if(serv.autoindex == 0)
-        {
-            return 403;
-        }
+        //if(serv.autoindex == 0)
+        //{
+        //    return 403;
+        //}
+        //else if (serv.autoindex == 1)
+        //{
+            //system("ls -la > autoindex.txt");
+            this->body = this->renderindex(path);
+            return(200);
+            
+        //}
+        return (680);
     }
 
     //cout << "ur mthode is GET" << endl << endl << endl;
