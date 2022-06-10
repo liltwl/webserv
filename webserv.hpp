@@ -30,9 +30,6 @@ using namespace std;
 vector<string> split (const string &s, char delim);
 
 
-
-
-
 typedef struct  location{
     string root;
     vector<string> methods;
@@ -73,6 +70,8 @@ class server
                 port = _server.port;
                 addr = _server.addr;
                 root = _server.root;
+                autoindex = _server.autoindex;
+                body_limit = _server.body_limit;
                 others = _server.others;
                 methods = _server.methods;
                 location = _server.location;

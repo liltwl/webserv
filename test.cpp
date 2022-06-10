@@ -20,9 +20,7 @@ void ft_spaceskip(string &line)
 
     while (i < line.size()) {
         if (line[i] != '\t' && line[i] != ' ') 
-        {
             break;
-        }
         i++;
     }
     line.erase(0,i);
@@ -118,12 +116,13 @@ void Requeststup(int fd, Request& ss, pollfd &fds)
         {
             string stmp ;
             getnextline(fd, stmp);
+            cout << stmp << endl;
             int len = stol(stmp, nullptr, 16);
             stmp.clear();
             if (len > 0)
             {
-                cout << len  << " :chunk length" << endl;
                 body_len += getlenline(fd, stmp, len);
+                cout << len  << " :chunk length : "<< body_len << endl;
                 ss.addbody(stmp, body_len);
             }
             else if (len == 0)
@@ -214,7 +213,7 @@ void server_pars(vector<server> &tmp,std::ifstream &file, server *ss)
             ss->setautoindex(split(str[1], ';')[0] == "on" ? 1 : 0);
         else if (!str[0].compare("client_body_limit")&& str.size())
             ss->setbody_limit(stoi(split(str[1], ';')[0]));
-        else if (!str[0].compare("lo cation")&& str.size())
+        else if (!str[0].compare("location")&& str.size())
             location_pars(ss, tmp, file, str);
         else if (!str[0].compare("}"))
             break ;
@@ -368,7 +367,7 @@ int main(int argc, char **argv)
 
     file.open(line);
     serversetup(ss, file);
-    cout << ss[0].name << " " << ss[0].addr << "::"<<  ss[0].port << ":" << ss[0].others.size() << " : "<< ss[0].location.begin()->first  << endl;
+    cout << ss[0].name << " " << ss[0].addr << "::"<<  ss[0].port << ":" << ss.size() << " : "<< ss[0].location.begin()->first  << endl;
     map<int ,string> trr =ss[0].geterrorpages();
     
     // for (map<int ,string>::iterator it = trr.begin(); it != trr.end(); it++)
@@ -412,15 +411,15 @@ int main(int argc, char **argv)
                 {
                     cout << it->first << ": " << it->second <<endl;
                 }
-                //cout << "body :" << clients[j].req.body << endl;
+                cout << "body :" << clients[j].req.body << endl;
                 cout << "*" << clients[j].req.headers["Connection"] << "*----" << endl;
             }
             else if (fds[i].revents != 0 && fds[i].revents & POLLOUT)
             {
 
-                std::ofstream newfile;
-                newfile.open("wwwww.png", std::ios::trunc);
-                newfile << clients[j].req.body;
+                // std::ofstream newfile;
+                // newfile.open("wwwww.png", std::ios::trunc);
+                // newfile << clients[j].req.body;
 
                                 /*********Response*********/
 
