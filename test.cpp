@@ -411,7 +411,7 @@ int main(int argc, char **argv)
                 {
                     cout << it->first << ": " << it->second <<endl;
                 }
-                cout << "body :" << clients[j].req.body << endl;
+                // cout << "body :" << clients[j].req.body << endl;
                 cout << "*" << clients[j].req.headers["Connection"] << "*----" << endl;
             }
             else if (fds[i].revents != 0 && fds[i].revents & POLLOUT)
@@ -442,7 +442,7 @@ int main(int argc, char **argv)
                     }
                     delete_client(clients, j, fds);//ss.e
                 }
-                else
+                // else
                     clients[j].req.clear();
             }
             //response.clear();
