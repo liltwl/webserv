@@ -3,107 +3,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 using namespace std;
-
-string getDate()
-{
-    time_t now = time(0);
-    string dt = ctime(&now);
-    return dt;
-}
-int finddir(string path) // this function ruturns 0 i it's not a file nor a directory 1 uif it's a file and 2 if it's dir
-{
-    struct stat path_stat;
-    stat(path.c_str(), &path_stat);
-    if(S_ISREG(path_stat.st_mode))
-    {
-        return(1);
-    }
-    else if(S_ISDIR(path_stat.st_mode))
-    {
-        return(2);
-    }
-    else
-        return 0;
-}
-
-string findlocation(Request &req, server &serv)
-{
-    string path;
-    int matchsize = 0;
-    for(map<string,loc>::iterator it = serv.location.begin(); it !=  serv.location.end(); it++)
-    {
-        if(strncmp(req.location.c_str(),it->first.c_str(), it->first.size()) == 0 && matchsize < it->first.size()) // chack if the request location exist in the config file locations and icrement i[0]
-        {
-            path = it->first ;
-            matchsize = it->first.size();
-
-//            if(find(it->second.methods.begin(), it->second.methods.end(),req.rqmethod) !=  it->second.methods.end() )// if he found the location it chacke if the method is allowed in the specified location and acrement i[1]
-  //              i[1]++;
-            //return(it->first);
-        }
-    }
-    if(matchsize > 0)
-        return(path);
-
-    return (serv.root);
-
-
-}
-
-
-class Header
-{
-    private:
-        
-        string Server;
-        int ContentLength;
-        string ContentType;  
-    public:
-    string date;
-    Header(string _ContentType, int ContentLength)
-    {
-        this->ContentType = _ContentType;
-        this->ContentLength = ContentLength;
-        this->date = getDate();
-        this->Server = "Server: webserv";
-    }
-    string get_ContemnentType()
-    {
-        return(this->ContentType);
-    }
-    void set_ContemnentType(string type)
-    {
-        this->ContentType = type;
-    }
-    int get_contentLength()
-    {
-        return this->ContentLength;
-    }   
-};
-class Statuscode{
-    private:
-        map<string, string> codes;
-    public:
-        Statuscode()
-        {
-            codes["200"] = "OK";
-            codes["404"] = "Not Found";
-            codes["500"] = "Internal Server Error";//error with cgi
-            codes["400"] = "Bad Request";
-            codes["413"] = "Request Entity Too Large";
-            codes["405"] = "Method Not Allowed";
-            codes["204"] = "No Content";
-            codes["201"] = "Created";
-            codes["403"] = "Forbidden";
-        }
-        string get_code(int code)
-        {
-            return ("HTTP/1.1 " + to_string(code) + " " + codes[to_string(code)]);
-        }
-
-};
-
-string get_type(string location)
+string get_type(string location, int mode)
 {
     map<string,string>ext;
       ext["3g2"] = "video/3gpp2";
@@ -447,15 +347,131 @@ string get_type(string location)
   ext["yin"] = "application/yin+xml";
   ext["yml"] = "text/yaml";
   ext["zip"] = "application/zip";
+
     
-    
-    vector<string> str;
-    str = split(location,'.');
-    if(ext.count(str.back()) == 0)
+    if(mode == 1)
+    {
+        vector<string> str;
+        str = split(location,'.');
+        if(ext.count(str.back()) == 0)
             return(string("Text/plain"));
-    else
-        return(ext[str.back()]);
+        else
+            return(ext[str.back()]);
+    }
+    else if(mode == 2)
+    {
+        for (map<string,string>::iterator i = ext.begin(); i != ext.end(); i++)
+        {
+            if(i->second == location)
+            {
+                return(i->first);
+            }
+        }
+        return("");
+    }
 };
+string getDate()
+{
+    time_t now = time(0);
+    string dt = ctime(&now);
+    return dt;
+}
+int finddir(string path) // this function ruturns 0 i it's not a file nor a directory 1 uif it's a file and 2 if it's dir
+{
+    struct stat path_stat;
+    stat(path.c_str(), &path_stat);
+    if(S_ISREG(path_stat.st_mode))
+    {
+        return(1);
+    }
+    else if(S_ISDIR(path_stat.st_mode))
+    {
+        return(2);
+    }
+    else
+        return 0;
+}
+
+string findlocation(Request &req, server &serv)
+{
+    string path;
+    int matchsize = 0;
+
+    for(map<string,loc>::iterator it = serv.location.begin(); it !=  serv.location.end(); it++)
+    {
+        if(strncmp(req.location.c_str(),it->first.c_str(), it->first.size()) == 0 && matchsize < it->first.size()) // chack if the request location exist in the config file locations and icrement i[0]
+        {
+            path = it->first ;
+            matchsize = it->first.size();
+
+
+//            if(find(it->second.methods.begin(), it->second.methods.end(),req.rqmethod) !=  it->second.methods.end() )// if he found the location it chacke if the method is allowed in the specified location and acrement i[1]
+  //              i[1]++;
+            //return(it->first);
+        }
+    }
+    if(matchsize > 0)
+        return(path);
+
+    return (serv.root);
+
+
+}
+
+
+class Header
+{
+    private:
+        
+        string Server;
+        int ContentLength;
+        string ContentType;  
+    public:
+    string date;
+    Header(string _ContentType, int ContentLength)
+    {
+        this->ContentType = _ContentType;
+        this->ContentLength = ContentLength;
+        this->date = getDate();
+        this->Server = "Server: webserv";
+    }
+    string get_ContemnentType()
+    {
+        return(this->ContentType);
+    }
+    void set_ContemnentType(string type)
+    {
+        this->ContentType = type;
+    }
+    int get_contentLength()
+    {
+        return this->ContentLength;
+    }   
+};
+class Statuscode{
+    private:
+        map<string, string> codes;
+    public:
+        Statuscode()
+        {
+            codes["200"] = "OK";
+            codes["404"] = "Not Found";
+            codes["500"] = "Internal Server Error";//error with cgi
+            codes["400"] = "Bad Request";
+            codes["413"] = "Request Entity Too Large";
+            codes["405"] = "Method Not Allowed";
+            codes["204"] = "No Content";
+            codes["201"] = "Created";
+            codes["403"] = "Forbidden";
+        }
+        string get_code(int code)
+        {
+            return ("HTTP/1.1 " + to_string(code) + " " + codes[to_string(code)]);
+        }
+
+};
+
+
 string renderpage(string filename)
 {
 
@@ -593,39 +609,7 @@ bool checkmethod(server &serv,string location ,string Method)
 
 int Response::handlerequest(Request &req, server &serv)
 {
-    //string reallocation
-    /*if(req.body.size() != atoi(req.headers["Content-Length"].c_str()))
-    {
-        return 413;
-    }*/
-    //int i[2] = {0,0};
-
-   
-    //std::vector<string>::iterator l;
-    /*for(map<string,loc>::iterator it = serv.location.begin(); it !=  serv.location.end(); it++)
-    {
-        if(strncmp(req.location.c_str(),it->first.c_str(), it->first.size()) == 0) // chack if the request location exist in the config file locations and icrement i[0]
-        {
-            if(find(it->second.methods.begin(), it->second.methods.end(),req.rqmethod) !=  it->second.methods.end() )// if he found the location it chacke if the method is allowed in the specified location and acrement i[1]
-                i[1]++;
-            i[0]++;
-        }
-    }
-    if(i[0] == 0 && req.location != "/")
-    {
-        cout << "l9lwiiiiiiiiiiiiuiiuiuiuiuiuiuiuiuiuiupfg[iuoptiytjyeiostyjesioyjeiojyes" << endl;
-        return 404;
-    }
-    if(req.location == "/")
-    {
-        if(find(serv.methods.begin(), serv.methods.end(),req.rqmethod) !=  serv.methods.end())
-            i[1]++;
-    }
-    if(i[1] == 0)
-    {
-        //cout << "l9lwiiiiiiiiiiiiuiiuiuiuiuiuiuiuiuiuiupfg[iuoptiytjyeiostyjesioyjeiojyes" << endl;
-        return 405;
-    }*/
+    
     this->rlocation = findlocation(req,serv);
     if(checkmethod(serv,this->rlocation,req.rqmethod) == false)
     {
@@ -648,14 +632,20 @@ int Response::handlePost()
 {
     //string filecmnd;
     //fstream f
+    
+    string filename = this->serv.location[rlocation].root + req.location + "/"+ to_string(rand()) +"." + get_type(this->req.headers["Content-Type"], 2);
+    string command;
+    command = string("touch ") + filename;
+    cout << filename << endl << endl << endl;
+    
     cout << "nnfnsdfndfn\n\n\n\n\n\n\n\n\n";
-    system("touch www/uploads/file.png");
-    fstream f("www/uploads/file.png");
+    system(command.c_str());
+    fstream f(filename.c_str());
     if(f)
     {
         f << this->req.body ;
     }
-        return(709);
+        return(201);
 };
 string Response::renderindex(string path)
 {
@@ -687,8 +677,14 @@ string Response::renderindex(string path)
 
 int Response::handleGet()
 {
-    string path = this->serv.location[this->rlocation].root +   req.location; 
-    cout << path << endl << endl << endl<< endl<< endl;
+    if(rlocation != serv.root)
+        string path = this->serv.location[this->rlocation].root + this->req.location.substr(rlocation.size()); 
+    else
+        path = serv.root + req.location;
+    cout <<path<<" aximilas"<<endl << endl << endl<< endl<< endl;
+    
+    
+    
     if(rlocation == "/cgi")
     {
         this->header.set_ContemnentType("./cgi-form.html");
@@ -704,7 +700,7 @@ int Response::handleGet()
     printf("this is the auto index %d\n\n\n\n\n\n",serv.autoindex);
     if(finddir(path) == 1)
     {
-        this->header.set_ContemnentType(get_type(this->req.location));
+        this->header.set_ContemnentType(get_type(this->req.location, 1));
         this->body = renderpage(path);
         return(200);
     }
