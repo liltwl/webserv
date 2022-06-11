@@ -1,3 +1,5 @@
+#pragma once
+
 #include "webserv.hpp"
 #include <dirent.h>
 #include <sys/types.h>

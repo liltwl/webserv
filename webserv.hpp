@@ -276,3 +276,16 @@ class client
         return ss;
     }
 };
+
+
+
+
+
+vector<string> allow_methodstup(vector<string> str);
+string location_pars(server *ss, vector<server> &tmp, std::ifstream &file, vector<string> str);
+int server_pars(vector<server> &tmp,std::ifstream &file, server *ss);
+void serversetup(vector<server> &tmp,std::ifstream &file);
+int guard(int n, string err);
+void ft_spaceskip(string &line);
+
+
