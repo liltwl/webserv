@@ -666,8 +666,16 @@ string Response::renderindex(string path)
             if(e->d_name != string(".") && e->d_name != string(".."))
         {
             this->body += string("<br>") ;
-            this->body += string("<a href=\"") + this->req.location + string("/") + e->d_name + string("\">")+ e->d_name + string("</a>"); 
+            if(this->req.location == "/")
+            {
+                this->body += string("<a href=\"") + this->req.location + e->d_name + string("\">")+ e->d_name + string("</a>"); 
+            }
+            else
+            {
+                    this->body += string("<a href=\"") + this->req.location + string("/") + e->d_name + string("\">")+ e->d_name + string("</a>"); 
 
+            }
+            
         }
         }   
     }
@@ -679,11 +687,12 @@ string Response::renderindex(string path)
 
 int Response::handleGet()
 {
+    string path;
     if(rlocation != serv.root)
-        string path = this->serv.location[this->rlocation].root + this->req.location.substr(rlocation.size()); 
+         path = this->serv.location[this->rlocation].root + this->req.location.substr(rlocation.size()); 
     else
         path = serv.root + req.location;
-    cout <<path<<" aximilas"<<endl << endl << endl<< endl<< endl;
+    cout << path <<" aximilas"<<endl << endl << endl<< endl<< endl;
     
     
     
