@@ -424,7 +424,7 @@ string findlocation(Request &req, server &serv)
 class Header
 {
     private:
-        map<string,string> headers;
+        
         string Server;
         string firstline;
         //int ContentLength;
@@ -436,6 +436,7 @@ class Header
         this->Server = serv.name;
         this->date = getDate();
     }
+    map<string,string> headers;
     /*string get_ContemnentType()
     {
         return(this->ContentType);
@@ -595,6 +596,8 @@ class Response
         header->set_firstline(code.get_code(status));
         if(this->body.size() > 0)
             header->setHeader("Content-Length" , to_string(this->body.size()));
+        else
+            header->setHeader("Content-Length" , "0");
         response = this->header->get_Header();
         /*string response = firstline + "\r\n";
         response += "Date:  " + header.date + " \r\n";
@@ -605,7 +608,7 @@ class Response
         response += "Content-Type: " + this->header.get_ContemnentType() + "\r\n";
         response += "\r\n";*/
         response += this->body;
-        cout <<"acab"<< endl;
+        cout <<response<< endl;
         
         //cout << endl << endl << response << endl;
         return response;
@@ -616,7 +619,8 @@ class Response
     }
     int get_response_size()
     {
-        return (this->body.size());
+        cout << this->body.size() << " header zise ."<< this->header->headers["Content-Length"] << endl;
+        return (this->body.size() + this->header->get_Header().size());
     }
 
 
@@ -681,12 +685,11 @@ int Response::handlePost()
 };
 string Response::renderindex(string path)
 {
-    ifstream f("autoindex.txt");
-    ofstream out("autoindex.txt");
     string str;
     DIR *dr;
     struct dirent *e;
     dr = opendir(path.c_str());
+    this->header->setHeader("Content-Type","Text/html");
     this->body = "<html>\n<head>\n<body>\n<table>\n";
     if(dr)
     {
@@ -740,7 +743,7 @@ int Response::handleGet()
         }*/
         //else
         //{
-        this->header->setHeader("Content-Length",get_type(this->req.location, 1));
+        this->header->setHeader("Content-Type",get_type(this->req.location, 1));
         this->body = renderpage(path);
         //}
         return(200);
