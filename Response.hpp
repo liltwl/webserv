@@ -699,7 +699,7 @@ string Response::renderindex(string path)
             if(e->d_name != string(".") && e->d_name != string(".."))
         {
             this->body += string("<br>") ;
-            if(this->req.location == "/")
+            if(this->req.location.back() == '/')
             {
                 this->body += string("<a href=\"") + this->req.location + e->d_name + string("\">")+ e->d_name + string("</a>"); 
             }
@@ -758,6 +758,12 @@ int Response::handleGet()
         //else if (serv.autoindex == 1)
         //{
             //system("ls -la > autoindex.txt");
+            if(this->req.location.back() != '/')
+            {
+                this->header->setHeader("Location",this->req.location + "/");
+
+                return(301);
+            }
             this->body = this->renderindex(path);
             return(200);
             
