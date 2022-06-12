@@ -4,9 +4,7 @@
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-
 using namespace std;
-
 string get_type(string location, int mode)
 {
     map<string,string>ext;
@@ -426,31 +424,50 @@ string findlocation(Request &req, server &serv)
 class Header
 {
     private:
-        
+        map<string,string> headers;
         string Server;
-        int ContentLength;
-        string ContentType;  
+        string firstline;
+        //int ContentLength;
+       // string ContentType;  
     public:
-    string date;
-    Header(string _ContentType, int ContentLength)
+        string date;
+    Header(server &serv)
     {
-        this->ContentType = _ContentType;
-        this->ContentLength = ContentLength;
+        this->Server = serv.name;
         this->date = getDate();
-        this->Server = "Server: webserv";
     }
-    string get_ContemnentType()
+    /*string get_ContemnentType()
     {
         return(this->ContentType);
-    }
-    void set_ContemnentType(string type)
+    }*/
+    void set_firstline(string firstline)
     {
-        this->ContentType = type;
+        this->firstline = firstline;
     }
-    int get_contentLength()
+    string get_Header()
     {
+        string header;
+        header = this->firstline + "\r\n";
+        header += "Date: " + this->date + " \r\n";
+        header += "Server: " + this->Server + "\r\n";
+        for(map<string,string>::iterator it = this->headers.begin(); it != this->headers.end(); it++)
+        {
+            header += it->first + ": " + it->second + "\r\n";
+
+        }
+        header += "\r\n";
+        return(header);
+    }
+    void setHeader(string key, string value)
+    {
+        this->headers[key] = value;
+    }
+    /*int get_contentLength()
+    {
+      
         return this->ContentLength;
-    }   
+    }*/
+ 
 };
 class Statuscode{
     private:
@@ -472,7 +489,6 @@ class Statuscode{
         {
             return ("HTTP/1.1 " + to_string(code) + " " + codes[to_string(code)]);
         }
-
 };
 
 
@@ -537,10 +553,10 @@ class Response
 {
     private:
         Statuscode code;
-        string firstline;
+        //string firstline;
         string methode;
         string rlocation;
-        Header header;
+        Header *header;
         string body;
         int    status;
         string path;
@@ -548,8 +564,9 @@ class Response
     Request &req;
     server &serv;
     Response();
-    Response( Request &_req, server &_serv) : req(_req) , serv(_serv) , header(Header("text/html", 0))
+    Response( Request &_req, server &_serv) : req(_req) , serv(_serv)
     {
+        this->header = new Header(serv);
         this->req = _req;
         this->status = this->handlerequest(req, serv);
         /*if(status !=  200)
@@ -560,7 +577,6 @@ class Response
         //this->body =renderror(this->status);
         //this->body = generatebody(req, serv, &status);
     
-        this->firstline = code.get_code(status);
         this->methode = _req.rqmethod;
         
         this->path = _req.location;
@@ -574,21 +590,33 @@ class Response
     string renderindex(string path);
     std::string respond()
     {
-        string response = firstline + "\r\n";
+        string response;
+        
+        header->set_firstline(code.get_code(status));
+        if(this->body.size() > 0)
+            header->setHeader("Content-Length" , to_string(this->body.size()));
+        response = this->header->get_Header();
+        /*string response = firstline + "\r\n";
         response += "Date:  " + header.date + " \r\n";
         response += "Server: webserv\r\n";
         
     
         response += "Content-Length: " + to_string(body.size()) + "\r\n";
         response += "Content-Type: " + this->header.get_ContemnentType() + "\r\n";
-        response += "\r\n";
+        response += "\r\n";*/
         response += this->body;
+        cout <<"acab"<< endl;
+        
         //cout << endl << endl << response << endl;
         return response;
     };
+    ~Response()
+    {
+        delete(this->header);
+    }
     int get_response_size()
     {
-        return (this->respond().size());
+        return (this->body.size());
     }
 
 
@@ -668,8 +696,16 @@ string Response::renderindex(string path)
             if(e->d_name != string(".") && e->d_name != string(".."))
         {
             this->body += string("<br>") ;
-            this->body += string("<a href=\"") + this->req.location + string("/") + e->d_name + string("\">")+ e->d_name + string("</a>"); 
+            if(this->req.location == "/")
+            {
+                this->body += string("<a href=\"") + this->req.location + e->d_name + string("\">")+ e->d_name + string("</a>"); 
+            }
+            else
+            {
+                    this->body += string("<a href=\"") + this->req.location + string("/") + e->d_name + string("\">")+ e->d_name + string("</a>"); 
 
+            }
+            
         }
         }   
     }
@@ -681,20 +717,14 @@ string Response::renderindex(string path)
 
 int Response::handleGet()
 {
+    string path;
     if(rlocation != serv.root)
-        string path = this->serv.location[this->rlocation].root + this->req.location.substr(rlocation.size()); 
+         path = this->serv.location[this->rlocation].root + this->req.location.substr(rlocation.size()); 
     else
         path = serv.root + req.location;
-    cout <<path<<" aximilas"<<endl << endl << endl<< endl<< endl;
+    cout << path <<" aximilas"<<endl << endl << endl<< endl<< endl;
     
-    
-    
-    if(rlocation == "/cgi")
-    {
-        this->header.set_ContemnentType("./cgi-form.html");
-        renderpage("./cgi-form.html");
-        return (200);
-    }
+
     if(finddir(path) == 0 )
     {
         
@@ -704,8 +734,15 @@ int Response::handleGet()
     printf("this is the auto index %d\n\n\n\n\n\n",serv.autoindex);
     if(finddir(path) == 1)
     {
-        this->header.set_ContemnentType(get_type(this->req.location, 1));
+        /*if(path.back() != '/')
+        {
+            this->header
+        }*/
+        //else
+        //{
+        this->header->setHeader("Content-Length",get_type(this->req.location, 1));
         this->body = renderpage(path);
+        //}
         return(200);
     }
     if(finddir(path) == 2)
@@ -769,3 +806,8 @@ class client
         delete res;
     }
 };
+
+
+
+
+
