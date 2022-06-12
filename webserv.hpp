@@ -205,9 +205,9 @@ class Request
         {
             vrs = val;
         }
-        void addheaders(string name, string value)
+        void addheaders(string key, string value)
         {
-            headers[name] = value;
+            headers[key] = value;
         }
         void addbody(string line, size_t len)
         {
@@ -227,15 +227,21 @@ class Request
 
         int empty_header()
         {
-            if (rqmethod.empty() || location.empty() || vrs.empty())
+            if (rqmethod.empty() || location.empty() || vrs.empty() || headers.empty())
                 return 1;
             return 0;
+        }
+
+        map<string, string> get_headrs()
+        {
+            return headers;
         }
 
         size_t get_body_len()
         {
             return body_len;
         }
+
         size_t empty()
         {
             cout << rqmethod.empty()<< " empty" << endl;
