@@ -217,14 +217,26 @@ void servers(vector<server> &ss,vector<pollfd> &fds)
     }
 }
 
-void addclienttoserver(server &ss,vector<client>& clients, int k)
+void addclienttoserver(server &ss,vector<client>& clients,vector<pollfd> &fds)
 {
     string str = "client";
     client stmp;
-
-    stmp.set_fd(k);
+    size_t addrlen = sizeof(ss.sockaddr);
+    int connection = accept(ss.sockfd, (struct sockaddr*)&ss.sockaddr, (socklen_t*)&addrlen);
+    pollfd fds1;
+                
+    if (connection < 0)
+    {
+        std::cout << "Failed to grab connection= "<< ss.get_name() <<". errno: " << errno << std::endl;
+        return ;
+    }
+    fds1.fd = connection;
+    fds1.events = POLLIN;
+    fds.push_back(fds1);
+    stmp.set_fd(connection);
     stmp.set_serv(ss);
     clients.push_back(stmp);
+    cout << "client 200 ok" << endl;
 }
 
 
@@ -256,22 +268,17 @@ void delete_client(vector<client>& clients, int i, int d ,vector<pollfd> &fds)
 
 int main(int argc, char **argv)
 {
-    std::ifstream file;
-    string line  = argv[1];
+    string line;
     vector<server> ss;
     vector<client> clients;
     Request req;
     int maxfd=0;
     vector<pollfd> fds;
 
-
-
-    file.open(line);
-
       /********************************/
 
 
-    serversetup(ss, file);
+    serversetup(ss, argv[1]);
 
 
       /********************************/
@@ -332,45 +339,26 @@ int main(int argc, char **argv)
 
                                 /*********Response*********/
 
-                Response response(clients[j].req, *(clients[j].get_serv()));
-                cout << response.respond().size() << " ====== " << response.get_response_size()<< endl;
+                //Response response(clients[j].req, *(clients[j].get_serv()));
+                //cout << response.respond().size() << " ====== " << response.get_response_size()<< endl;
+                //send(fds[i].fd, response.respond().c_str(), response.get_response_size(), 0);
                 
-                
-                send(fds[i].fd, response.respond().c_str(), response.get_response_size(), 0);
-                
-                
+                clients[j].respond();
                                 /******************/
 
 
                 fds[i].events = POLLIN;
                 if (!(clients[j].req.headers.count("Connection") && clients[j].req.headers.at("Connection") == "keep-alive"))
                     delete_client(clients, j, i, fds);
-                // else
+                else
                     clients[j].req.clear();
             }
-            //response.clear();
         }
         for (int i = 0; i < ss.size(); i++)
         {
-            size_t addrlen = sizeof(ss[i].sockaddr);
-
             if (fds[i].revents != 0 && fds[i].revents & POLLIN)
-            {
-                int connection = accept(ss[i].sockfd, (struct sockaddr*)&ss[i].sockaddr, (socklen_t*)&addrlen);
-                
-                if (connection < 0) {
-                    std::cout << "Failed to grab connection= "<< i <<". errno: " << errno << std::endl;
-                    continue;
-                }
-                
-                pollfd fds1;
-                fds1.fd = connection;
-                fds1.events = POLLIN;
-                fds.push_back(fds1);
-                addclienttoserver(ss[i], clients, connection);
-                cout << "client 200 ok" << endl;
-            }
-}
+                addclienttoserver(ss[i], clients, fds);
+        }
         cout<< "__________the_end____________" << endl;
     }
     //}

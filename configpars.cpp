@@ -1,5 +1,3 @@
-
-
 #include "webserv.hpp"
 
 
@@ -74,12 +72,14 @@ int server_pars(vector<server> &tmp,std::ifstream &file, server *ss)
 }
 
 
-void serversetup(vector<server> &tmp,std::ifstream &file)
+void serversetup(vector<server> &tmp,string filename)
 {
     vector<string> str;
     server *ss = NULL;
     string line;
+    std::ifstream file;
 
+    file.open(filename);
     for (int i = 0; !file.eof(); i++)
     {
         line.clear();
