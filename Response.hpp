@@ -4,7 +4,9 @@
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+
 using namespace std;
+
 string get_type(string location, int mode)
 {
     map<string,string>ext;
@@ -666,16 +668,8 @@ string Response::renderindex(string path)
             if(e->d_name != string(".") && e->d_name != string(".."))
         {
             this->body += string("<br>") ;
-            if(this->req.location == "/")
-            {
-                this->body += string("<a href=\"") + this->req.location + e->d_name + string("\">")+ e->d_name + string("</a>"); 
-            }
-            else
-            {
-                    this->body += string("<a href=\"") + this->req.location + string("/") + e->d_name + string("\">")+ e->d_name + string("</a>"); 
+            this->body += string("<a href=\"") + this->req.location + string("/") + e->d_name + string("\">")+ e->d_name + string("</a>"); 
 
-            }
-            
         }
         }   
     }
@@ -687,12 +681,11 @@ string Response::renderindex(string path)
 
 int Response::handleGet()
 {
-    string path;
     if(rlocation != serv.root)
-         path = this->serv.location[this->rlocation].root + this->req.location.substr(rlocation.size()); 
+        string path = this->serv.location[this->rlocation].root + this->req.location.substr(rlocation.size()); 
     else
         path = serv.root + req.location;
-    cout << path <<" aximilas"<<endl << endl << endl<< endl<< endl;
+    cout <<path<<" aximilas"<<endl << endl << endl<< endl<< endl;
     
     
     
@@ -737,7 +730,42 @@ int Response::handleGet()
     return(205);
 };
 
+class client
+{
+    public :
+        int fd;
+        server  *ss;
+        Request req;
+        Response *res;
+    
+    client():fd(0) , ss(NULL){}
+    ~client(){
+        // if (fd > 0)
+        // close (fd);
+    }
+    void set_fd(int _fd)
+    {
+        fd = _fd;
+    }
 
+    void set_serv(server& _ss)
+    {
+        ss = &_ss;
+    }
 
+    int get_fd()
+    {
+        return fd;
+    }
 
-
+    server* get_serv()
+    {
+        return ss;
+    }
+    void respond()
+    {
+        res = new Response(req,*ss);
+        send(fd, res->respond().c_str(),res->get_response_size(),0);
+        delete res;
+    }
+};

@@ -24,9 +24,7 @@
 #include <sys/ioctl.h>
 #include <sys/select.h>
 
-
 using namespace std;
-
 vector<string> split (const string &s, char delim);
 
 
@@ -248,41 +246,6 @@ class Request
             return (rqmethod.empty());
         }
 };
-
-
-class client
-{
-    public :
-        int fd;
-        server  *ss;
-        Request req;
-    
-    client():fd(0) , ss(NULL){}
-    ~client(){
-        // if (fd > 0)
-        // close (fd);
-    }
-    void set_fd(int _fd)
-    {
-        fd = _fd;
-    }
-
-    void set_serv(server& _ss)
-    {
-        ss = &_ss;
-    }
-
-    int get_fd()
-    {
-        return fd;
-    }
-
-    server* get_serv()
-    {
-        return ss;
-    }
-};
-
 
 
 
