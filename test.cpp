@@ -246,7 +246,7 @@ void delete_client(vector<client>& clients, int i, int d ,vector<pollfd> &fds)
 {
     int k =0;
 
-    for (vector<client>::iterator it = clients.begin(); k < i && it != clients.end();k++, it++)
+    for (vector<client>::iterator it = clients.begin(); it != clients.end();k++, it++)
         if (k == i)
         {
             clients.erase(it);
