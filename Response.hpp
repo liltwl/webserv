@@ -503,7 +503,7 @@ string renderpage(string filename)
       ss << f.rdbuf(); // reading data
       str = ss.str();
    }
-  
+    
     return str;
     
 }
@@ -555,6 +555,8 @@ class Response
     private:
         Statuscode code;
         //string firstline;
+        
+        vector<string> chunks;
         string methode;
         string rlocation;
         Header *header;
@@ -565,8 +567,10 @@ class Response
     Request &req;
     server &serv;
     Response();
+    bool is_chunked;
     Response( Request &_req, server &_serv) : req(_req) , serv(_serv)
     {
+        this->is_chunked = false;
         this->header = new Header(serv);
         this->req = _req;
         this->status = this->handlerequest(req, serv);
@@ -585,7 +589,8 @@ class Response
         //this->body = ""; //this->path ;
     };
     int handlerequest(Request &req, server &serv);
-
+    string get_chunk();
+    
     int handleGet();
     int handlePost();
     string renderindex(string path);
@@ -608,7 +613,7 @@ class Response
         response += "Content-Type: " + this->header.get_ContemnentType() + "\r\n";
         response += "\r\n";*/
         response += this->body;
-        cout <<response<< endl;
+        //cout <<response<< endl;
         
         //cout << endl << endl << response << endl;
         return response;
@@ -619,7 +624,7 @@ class Response
     }
     int get_response_size()
     {
-        cout << this->body.size() << " header zise ."<< this->header->headers["Content-Length"] << endl;
+        //cout << this->body.size() << " header zise ."<< this->header->headers["Content-Length"] << endl;
         return (this->body.size() + this->header->get_Header().size());
     }
 
@@ -652,14 +657,14 @@ int Response::handlerequest(Request &req, server &serv)
         return 405;
     }
 
-    cout << "this>rlocation ::::::::::::::::" << this->rlocation<<endl;
+    //cout << "this>rlocation ::::::::::::::::" << this->rlocation<<endl;
     if(req.rqmethod == "GET")
     {
         return this->handleGet();
     }
     if(req.rqmethod == "POST")
     {
-        cout <<endl<<endl<<endl<<endl<<endl<<"kskkkkk"<<endl;
+        //cout <<endl<<endl<<endl<<endl<<endl<<"kskkkkk"<<endl;
         return(this->handlePost());
     }
     return(200);
@@ -672,9 +677,9 @@ int Response::handlePost()
     string filename = this->serv.location[rlocation].root + req.location + "/"+ to_string(rand()) +"." + get_type(this->req.headers["Content-Type"], 2);
     string command;
     command = string("touch ") + filename;
-    cout << filename << endl << endl << endl;
+    //cout << filename << endl << endl << endl;
     
-    cout << "nnfnsdfndfn\n\n\n\n\n\n\n\n\n";
+    //cout << "nnfnsdfndfn\n\n\n\n\n\n\n\n\n";
     system(command.c_str());
     fstream f(filename.c_str());
     if(f)
@@ -725,7 +730,7 @@ int Response::handleGet()
          path = this->serv.location[this->rlocation].root + this->req.location.substr(rlocation.size()); 
     else
         path = serv.root + req.location;
-    cout << path <<" aximilas"<<endl << endl << endl<< endl<< endl;
+    //cout << path <<" aximilas"<<endl << endl << endl<< endl<< endl;
     
 
     if(finddir(path) == 0 )
@@ -745,6 +750,22 @@ int Response::handleGet()
         //{
         this->header->setHeader("Content-Type",get_type(this->req.location, 1));
         this->body = renderpage(path);
+        if(this->body.size() > 100)
+        {
+                this->is_chunked = true;
+                int i = 0;
+                while(i < int(this->body.size() / 10))
+                {
+                    this->chunks.push_back(this->body.substr(i * 10 , 10));
+                    //cout << "i is: " << i << " "<< "chunk: " << this->chunks.back().size() << "//"<<chunks.back() <<"//"<< endl;
+                    i += 1;
+                }
+                if(this->body.size() % 10 != 0)
+                {
+                    this->chunks.push_back(this->body.substr(i * 10));
+                    //cout << "chunk: " << this->chunks.back().size() << "//"<<chunks.back() << endl;
+                }
+        }
         //}
         return(200);
     }
@@ -765,14 +786,14 @@ int Response::handleGet()
                 return(301);
             }
             this->body = this->renderindex(path);
+
             return(200);
             
         //}
         //return (680);
     }
 
-    //cout << "ur mthode is GET" << endl << endl << endl;
-    //cout << this->req.location  << "<< location is"<< endl;
+
     return(205);
 };
 
@@ -783,6 +804,7 @@ class client
         server  *ss;
         Request req;
         Response *res;
+        string chunk;
     
     client():fd(0) , ss(NULL){}
     ~client(){
@@ -811,11 +833,40 @@ class client
     void respond()
     {
         res = new Response(req,*ss);
+        if(res->is_chunked == false)
+        {
         send(fd, res->respond().c_str(),res->get_response_size(),0);
+        }
+        else
+        {
+            //int i = 0;
+            while(res->is_chunked != false)
+            {
+                chunk = res->get_chunk();   
+                //cout << "CHUNK :"  << i << "\n"<< chunk << endl;
+                //i++;
+            }
+            chunk = string("0\r\n\r\n");
+        }
         delete res;
     }
 };
 
+
+string Response::get_chunk()
+    {
+        if(chunks.empty())
+        {
+            this->is_chunked = false;
+            return("0\r\n\r\n");
+        }
+
+            string str = to_string(chunks.front().size()) + string("\r\n") + chunks.front()+string("\r\n");
+            cout << "chunk " << str << endl;
+            chunks.erase(chunks.begin());
+            return(str);
+
+    }
 
 
 
