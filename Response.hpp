@@ -553,20 +553,23 @@ string handlgfgfgfgfgeGet(Request &req, server &serv, int &status)
 class Response
 {
     private:
-        Statuscode code;
+       
         //string firstline;
         
         vector<string> chunks;
         string methode;
         string rlocation;
-        Header *header;
+        
         string body;
-        int    status;
+        
         string path;
     public:
     Request &req;
     server &serv;
     Response();
+    Header *header;
+     Statuscode code;
+     int    status;
     bool is_chunked;
     Response( Request &_req, server &_serv) : req(_req) , serv(_serv)
     {
@@ -749,7 +752,9 @@ int Response::handleGet()
         //else
         //{
         this->header->setHeader("Content-Type",get_type(this->req.location, 1));
+        
         this->body = renderpage(path);
+        this->header->setHeader("Content-Length",to_string(this->body.size()));
         if(this->body.size() > 100)
         {
                 this->is_chunked = true;
@@ -839,14 +844,19 @@ class client
         }
         else
         {
-            //int i = 0;
+            res->header->set_firstline(res->code.get_code(res->status));
+            send(fd, res->header->get_Header().c_str(),res->header->get_Header().size(),0);
+
+            cout << res->header->get_Header() << endl;
             while(res->is_chunked != false)
             {
-                chunk = res->get_chunk();   
-                //cout << "CHUNK :"  << i << "\n"<< chunk << endl;
+                chunk = res->get_chunk();
+                send(fd, chunk.c_str(),chunk.size(),0);   
+                cout << "CHUNK :"  <<  chunk << endl;
                 //i++;
             }
-            chunk = string("0\r\n\r\n");
+            send(fd, string("0\r\n\r\n").c_str(),string("0\r\n\r\n").size(),0);
+           //chunk = string("0\r\n\r\n");
         }
         delete res;
     }
@@ -855,17 +865,16 @@ class client
 
 string Response::get_chunk()
     {
+        
         if(chunks.empty())
         {
             this->is_chunked = false;
             return("0\r\n\r\n");
         }
-
-            string str = to_string(chunks.front().size()) + string("\r\n") + chunks.front()+string("\r\n");
-            cout << "chunk " << str << endl;
+            string str = chunks.front();//+string("\r\n");
+            //cout << "chunk " << str << endl;
             chunks.erase(chunks.begin());
             return(str);
-
     }
 
 
