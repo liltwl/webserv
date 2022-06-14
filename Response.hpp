@@ -571,9 +571,11 @@ class Response
      Statuscode code;
      int    status;
     bool is_chunked;
+    bool header_sent;
     Response( Request &_req, server &_serv) : req(_req) , serv(_serv)
     {
         this->is_chunked = false;
+        this->header_sent = false;
         this->header = new Header(serv);
         this->req = _req;
         this->status = this->handlerequest(req, serv);
@@ -809,9 +811,10 @@ class client
         server  *ss;
         Request req;
         Response *res;
+      
         string chunk;
     
-    client():fd(0) , ss(NULL){}
+    client():fd(0) , ss(NULL), res(NULL){}
     ~client(){
         // if (fd > 0)
         // close (fd);
@@ -835,30 +838,47 @@ class client
     {
         return ss;
     }
-    void respond()
+    void respond(pollfd &fds)
     {
-        res = new Response(req,*ss);
+        if(!this->res)
+        {
+            res = new Response(req,*ss);
+        }
         if(res->is_chunked == false)
         {
-        send(fd, res->respond().c_str(),res->get_response_size(),0);
+            send(fd, res->respond().c_str(),res->get_response_size(),0);
+            fds.events = POLLIN;
         }
         else
         {
-            res->header->set_firstline(res->code.get_code(res->status));
-            send(fd, res->header->get_Header().c_str(),res->header->get_Header().size(),0);
-
-            cout << res->header->get_Header() << endl;
-            while(res->is_chunked != false)
+            if(res->header_sent == false )
+            {
+                res->header->set_firstline(res->code.get_code(res->status));
+                send(fd, res->header->get_Header().c_str(),res->header->get_Header().size(),0);
+                res->header_sent = true;
+                //cout << res->header->get_Header() << endl;
+            }
+            while(res->is_chunked == true)
             {
                 chunk = res->get_chunk();
                 send(fd, chunk.c_str(),chunk.size(),0);   
                 cout << "CHUNK :"  <<  chunk << endl;
+                if (chunk == "0\r\n")
+                    fds.events = POLLIN;
                 //i++;
             }
-            send(fd, string("0\r\n\r\n").c_str(),string("0\r\n\r\n").size(),0);
+            //if(res->is_chunked == false)
+            //{
+              //  send(fd, string("0\r\n\r\n").c_str(),string("0\r\n\r\n").size(),0);
+                //fds.events = POLLIN;
+            //}
            //chunk = string("0\r\n\r\n");
+        
         }
-        delete res;
+        // if(res->is_chunked == false)
+        // {
+        //     delete res;
+        // }
     }
 };
 
@@ -869,7 +889,8 @@ string Response::get_chunk()
         if(chunks.empty())
         {
             this->is_chunked = false;
-            return("0\r\n\r\n");
+            //return("0\r\n\r\n");
+            return("0\r\n");
         }
             string str = chunks.front();//+string("\r\n");
             //cout << "chunk " << str << endl;

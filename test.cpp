@@ -343,15 +343,21 @@ int main(int argc, char **argv)
                 //cout << response.respond().size() << " ====== " << response.get_response_size()<< endl;
                 //send(fds[i].fd, response.respond().c_str(), response.get_response_size(), 0);
                 
-                clients[j].respond();
+                clients[j].respond(fds[i]);
                                 /******************/
 
 
-                fds[i].events = POLLIN;
+                // fds[i].events = POLLIN;
                 if (!(clients[j].req.headers.count("Connection") && clients[j].req.headers.at("Connection") == "keep-alive"))
                     delete_client(clients, j, i, fds);
-                else
+                // else
+                //     clients[j].req.clear();
+                if (fds[i].events == POLLIN)
+                {
+                    delete(clients[j].res);
+                    clients[j].res = NULL;
                     clients[j].req.clear();
+                }
             }
         }
         for (int i = 0; i < ss.size(); i++)
