@@ -50,20 +50,24 @@ int getnextline(int fd, string &line)
     return (nl == 0||delim == 0 || line.size() == 0 ? 0 : enf);
 }
 
+# define delim_size 300
 int getlenline(int fd, string &line, int len)
 {
-    char delim;
+    char delim[delim_size + 1];
     char nl[2];
-    int enf = 0;
+    int enf = 0, k =0;
     int i = 0;
 
-    while (i < len && (enf += recv(fd, &delim, 1, 0))> 0)
+    while (i < len && (k = recv(fd, &delim, i +delim_size< len? delim_size : (len - i), 0))> 0)
     {
-        i++;
-        line.push_back(delim);
+        i += i + delim_size < len ? delim_size : (len - i);
+        delim[k] = 0;
+        enf += k;
+        line += delim;
     }
+    cout << enf << endl;
     if ((enf += recv(fd, &nl, 2, 0)) > 0 && (nl[0] ==  13 && nl[1] == '\n'))
-        return i;
+        return enf - 2;
     return (-1);
 }
 
