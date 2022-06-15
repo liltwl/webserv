@@ -485,6 +485,7 @@ class Statuscode{
             codes["204"] = "No Content";
             codes["201"] = "Created";
             codes["403"] = "Forbidden";
+            codes["409"] = "Conflit";
         }
         string get_code(int code)
         {
@@ -570,6 +571,7 @@ class Response
     Header *header;
      Statuscode code;
      int    status;
+    
     bool is_chunked;
     bool header_sent;
     Response( Request &_req, server &_serv) : req(_req) , serv(_serv)
@@ -597,6 +599,7 @@ class Response
     string get_chunk();
     
     int handleGet();
+    int handleDelete();
     int handlePost();
     string renderindex(string path);
     std::string respond()
@@ -672,6 +675,11 @@ int Response::handlerequest(Request &req, server &serv)
         //cout <<endl<<endl<<endl<<endl<<endl<<"kskkkkk"<<endl;
         return(this->handlePost());
     }
+    if(req.rqmethod == "DELETE")
+    {
+        return(this->handleDelete());
+        cout << "the request is delete" << endl << endl<<endl;
+    }
     return(200);
 };
 int Response::handlePost()
@@ -727,6 +735,89 @@ string Response::renderindex(string path)
     return(this->body);
 }
 
+int deletedir(string path)
+{
+        struct dirent *entry = NULL;
+        DIR *dir = NULL;
+        dir = opendir(path.c_str());
+        while((entry = readdir(dir)))
+        {   
+                DIR *sub_dir = NULL;
+                FILE *file = NULL;
+                string abs_path;
+                if(*(entry->d_name) != '.')
+                {   
+                        abs_path =  path + entry->d_name;
+                        //sprintf(abs_path, "%s/%s", path, entry->d_name);
+                        if((sub_dir = opendir(abs_path.c_str())))
+                        {   
+                                closedir(sub_dir);
+                                deletedir(abs_path.c_str());
+                        }   
+                        else 
+                        {   
+                                if(file = fopen(abs_path.c_str(), "w"))
+                                {   
+                                        fclose(file);
+                                        if(remove(abs_path.c_str()) != 0)
+                                        {
+                                            return(1);
+                                        }
+                                }
+                                else
+                                    return(1);  
+                        }   
+                }   
+        }   
+        if(remove(path.c_str())!= 0)
+            return(2);
+        return(0);
+};
+
+int Response::handleDelete()
+{
+    string path;
+    if(rlocation != serv.root)
+         path = this->serv.location[this->rlocation].root + this->req.location.substr(rlocation.size()); 
+    else
+        path = serv.root + req.location;
+    cout << "DELETE THIS PAT ::" << path << endl;
+        if(finddir(path) == 0)
+        {
+        
+        return(404);
+        }
+        if(finddir(path) == 1)
+        {
+            int status;
+            status = remove(path.c_str());
+            if(status == 0)
+                return 204;
+            else
+                if(access(path.c_str(),W_OK) == 0)
+                    return 500;
+                else
+                    return (403);
+        }
+        if(finddir(path) == 2)
+        {
+            if(this->req.location.back() != '/')
+                return 409;
+            if(access(path.c_str(),W_OK) == 0)
+            {
+                if(deletedir(path) == 0)
+                {
+                    return 204;
+                } 
+                else
+                    return 500;
+            }
+            else
+                return(403);
+        }
+
+}
+
 
 int Response::handleGet()
 {
@@ -754,9 +845,17 @@ int Response::handleGet()
         //else
         //{
         this->header->setHeader("Content-Type",get_type(this->req.location, 1));
-        
-        this->body = renderpage(path);
+        /*File *f;
+
+        f = fopen(path.c_str(),"r");
+        fseek(f,0,SEEK_END);
+        unsigned long len = (unsigned long)ftell(f);
+        if(len < 1000000)
+            this->body = renderpage(path);
+        else*/
+
         this->header->setHeader("Content-Length",to_string(this->body.size()));
+        //this->header->setHeader("name","a.pdf");
         if(this->body.size() > 100)
         {
                 this->is_chunked = true;
@@ -856,7 +955,7 @@ class client
                 res->header->set_firstline(res->code.get_code(res->status));
                 send(fd, res->header->get_Header().c_str(),res->header->get_Header().size(),0);
                 res->header_sent = true;
-                //cout << res->header->get_Header() << endl;
+                cout << res->header->get_Header() << endl;
             }
             while(res->is_chunked == true)
             {
