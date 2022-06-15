@@ -97,7 +97,7 @@ void chunked_body_pars(int fd, Request& ss, pollfd &fds)
     string line;
     vector<string> str;
     int i, j;
-    int req_len = stoi(ss.headers.find("Content-Length")->second);
+    int req_len = ss.get_headrs().count("Content-Length")? stoi( ss.get_headrs().find("Content-Length")->second) : 0; // update
     int body_len = 0;
     int k =1;
 
@@ -150,7 +150,7 @@ void Requeststup(int fd, Request& ss, pollfd &fds)
     cout << "header :" << ss.empty_header() << endl;
     if (ss.empty_header())
         headerpars(fd, ss);
-    else if(ss.get_headrs().count("Content-Length") && ss.get_headrs().count("Transfer-Encoding"))
+    else if(ss.get_headrs().count("Transfer-Encoding"))
         chunked_body_pars(fd, ss, fds);
     else if(ss.get_headrs().count("Content-Length"))
         body_pars(fd, ss, fds);
