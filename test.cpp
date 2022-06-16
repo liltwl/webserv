@@ -50,7 +50,8 @@ int getnextline(int fd, string &line)
     return (nl == 0||delim == 0 || line.size() == 0 ? 0 : enf);
 }
 
-# define delim_size 300
+# define delim_size 200
+
 int getlenline(int fd, string &line, int len)
 {
     char delim[delim_size + 1];
@@ -58,16 +59,14 @@ int getlenline(int fd, string &line, int len)
     int enf = 0, k =0;
     int i = 0;
 
-    while (i < len && (k = recv(fd, &delim, i +delim_size< len? delim_size : (len - i), 0))> 0)
+    while (i < len && (enf = recv(fd, &delim, i +delim_size< len? delim_size : (len - i), 0))> 0)
     {
-        i += i + delim_size < len ? delim_size : (len - i);
-        delim[k] = 0;
-        enf += k;
-        line += delim;
+        i += enf;
+        line.append(delim, enf);
     }
     cout << enf << endl;
     if ((enf += recv(fd, &nl, 2, 0)) > 0 && (nl[0] ==  13 && nl[1] == '\n'))
-        return enf - 2;
+        return i;
     return (-1);
 }
 
@@ -352,16 +351,16 @@ int main(int argc, char **argv)
 
 
                 // fds[i].events = POLLIN;
-                if (!(clients[j].req.headers.count("Connection") && clients[j].req.headers.at("Connection") == "keep-alive"))
-                    delete_client(clients, j, i, fds);
-                // else
-                //     clients[j].req.clear();
                 if (fds[i].events == POLLIN)
                 {
                     delete(clients[j].res);
                     clients[j].res = NULL;
                     clients[j].req.clear();
                 }
+                if (!(clients[j].req.headers.count("Connection") && clients[j].req.headers.at("Connection") == "keep-alive"))
+                    delete_client(clients, j, i, fds);
+                // else
+                //     clients[j].req.clear();
             }
         }
         for (int i = 0; i < ss.size(); i++)
