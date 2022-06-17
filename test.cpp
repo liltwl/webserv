@@ -281,7 +281,9 @@ int main(int argc, char **argv)
       /********************************/
 
 
-    serversetup(ss, argv[1]);
+
+
+    serversetup(ss, argv[1]);  // parsing conf
 
 
       /********************************/
