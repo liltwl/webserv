@@ -46,7 +46,6 @@ int getnextline(int fd, string &line)
         else
             line.push_back(delim); 
     }
-    //hadi yarabak khasak mazal t9adha 3la hsab error status
     return (nl == 0||delim == 0 || line.size() == 0 ? 0 : enf);
 }
 
@@ -64,7 +63,6 @@ int getlenline(int fd, string &line, int len)
         i += enf;
         line.append(delim, enf);
     }
-    cout << enf << endl;
     if ((enf += recv(fd, &nl, 2, 0)) > 0 && (nl[0] ==  13 && nl[1] == '\n'))
         return i;
     return (-1);
@@ -139,7 +137,7 @@ void body_pars(int fd, Request& ss, pollfd &fds)
 
     int len = stoi(ss.get_headrs().find("Content-Length")->second);
     getlenline(fd, ss.body, len);
-    if (getlenline(fd, line, 1))
+    if (getlenline(fd, line, 1) > 0)
         cout << "Content-Length < content len " << endl;
     fds.events = POLLOUT;
 }
@@ -166,7 +164,8 @@ int guard(int n, string err)
 {
     if (n == -1)
     {
-        cout << (err) << endl; exit(1); 
+        cout << (err) << endl; 
+        exit(1); 
     }
     return n;
 }
@@ -281,9 +280,7 @@ int main(int argc, char **argv)
       /********************************/
 
 
-
-
-    serversetup(ss, argv[1]);  // parsing conf
+    serversetup(ss, argv[1]);
 
 
       /********************************/
@@ -292,11 +289,8 @@ int main(int argc, char **argv)
 
     cout << ss[0].name << " " << ss[0].addr << "::"<<  ss[0].port << ":" << ss.size() << " : "<< ss[0].location.begin()->first  << endl;
     map<int ,string> trr =ss[0].geterrorpages();
-    
-    // for (map<int ,string>::iterator it = trr.begin(); it != trr.end(); it++)
-    // {
-    //     cout << it->first <<"other: " << it->second <<endl;
-    // }
+
+
     servers(ss, fds);
 
     
@@ -311,11 +305,6 @@ int main(int argc, char **argv)
         if (rc < 0)
         {
             perror("serv poll() failed");
-            break;
-        }
-        if (rc == 0)
-        {
-            printf("serv poll() timed out.  End program.\n");
             break;
         }
         for (int i = ss.size(), j = 0; i < clients.size() + ss.size(); i++, j++)
@@ -337,17 +326,9 @@ int main(int argc, char **argv)
             }
             else if (fds[i].revents != 0 && fds[i].revents & POLLOUT)
             {
-
-                // std::ofstream newfile;
-                // newfile.open("wwwww.png", std::ios::trunc);
-                // newfile << clients[j].req.body;
-
+  
                                 /*********Response*********/
 
-                //Response response(clients[j].req, *(clients[j].get_serv()));
-                //cout << response.respond().size() << " ====== " << response.get_response_size()<< endl;
-                //send(fds[i].fd, response.respond().c_str(), response.get_response_size(), 0);
-                
                 clients[j].respond(fds[i]);
                                 /******************/
 
