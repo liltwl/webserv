@@ -5,7 +5,7 @@ CFLAGS = -Wall -Wextra -Werror
 
 CC = c++
 
-FIL_ = *.cpp
+FIL_ = test_merge.cpp
 
 
 OBJ = $(FIL:.c=.o)
@@ -15,7 +15,7 @@ FIL = $(addprefix ./, $(FIL_))
 all: $(NAME)
 
 $(NAME): $(FIL)
-	$(CC)  $(FIL) -o $(NAME)
+	$(CC)  $(FIL) parse_confile/*.cpp -o $(NAME)
 
 run1: $(NAME)
 	./webserv 1.config

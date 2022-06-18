@@ -2,6 +2,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <netinet/in.h>
+
 
 size_t parse_config::get_lines_size() const
 {

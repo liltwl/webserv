@@ -10,6 +10,7 @@
 #include "server.hpp"
 #include "location.hpp"
 #include "cgi.hpp"
+#include <netinet/in.h>
 class cgi;
 class location;
 class server;

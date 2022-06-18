@@ -6,6 +6,11 @@
 #include "./location.hpp"
 #include "./cgi.hpp"
 
+#include <netinet/in.h>
+
+
+
+
 server::server():
     _name(),
     _listen_port(-1),
@@ -569,4 +574,14 @@ std::vector<std::string>     server::get_index() const
 std::vector<cgi>    server::get_cgi() const
 {
     return _cgi;
+}
+
+sockaddr_in                  server::get_sock_ader()
+{
+    sockaddr_in sockaddr;
+
+    sockaddr.sin_family = AF_INET;
+    sockaddr.sin_addr.s_addr = inet_addr(get_listen_host().c_str());
+    sockaddr.sin_port = htons(get_listen_port());
+    return sockaddr;
 }

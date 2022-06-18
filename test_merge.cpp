@@ -1,170 +1,170 @@
-#include "webserv.hpp"
+#include "webserv_merge.hpp"
 // #include "Response.hpp"
 
 using namespace std;
 
 
-// vector<string> split (const string &s, char delim)
-// {
-//     vector<string> result;
-//     stringstream ss (s);
-//     string item;
+vector<string> split (const string &s, char delim)
+{
+    vector<string> result;
+    stringstream ss (s);
+    string item;
 
-//     while (getline(ss, item, delim)) {
-//         result.push_back(item);
-//     }
-//     return result;
-// }
-
-
-// void ft_spaceskip(string &line)
-// {
-//     int i = 0;
-
-//     while (i < line.size()) {
-//         if (line[i] != '\t' && line[i] != ' ') 
-//             break;
-//         i++;
-//     }
-//     line.erase(0,i);
-// }
+    while (getline(ss, item, delim)) {
+        result.push_back(item);
+    }
+    return result;
+}
 
 
+void ft_spaceskip(string &line)
+{
+    int i = 0;
 
-// int getnextline(int fd, string &line)
-// {
-//     char delim;
-//     char nl = 0;
-//     int enf = 0;
+    while (i < line.size()) {
+        if (line[i] != '\t' && line[i] != ' ') 
+            break;
+        i++;
+    }
+    line.erase(0,i);
+}
 
-//     while ((enf += recv(fd, &delim, 1, 0))> 0 && delim != 0)
-//     {
-//         if (delim == 13)
-//         {
-//             if ((enf += recv(fd, &nl, 1, 0)) > 0 && (nl == '\n' || nl == 0))
-//                 break;
-//             line.push_back(delim); 
-//             line.push_back(nl); 
-//         }
-//         else
-//             line.push_back(delim); 
-//     }
-//     return (nl == 0||delim == 0 || line.size() == 0 ? 0 : enf);
-// }
 
-// # define delim_size 200
 
-// int getlenline(int fd, string &line, int len)
-// {
-//     char delim[delim_size + 1];
-//     char nl[2];
-//     int enf = 0, k =0;
-//     int i = 0;
+int getnextline(int fd, string &line)
+{
+    char delim;
+    char nl = 0;
+    int enf = 0;
 
-//     while (i < len && (enf = recv(fd, &delim, i +delim_size< len? delim_size : (len - i), 0))> 0)
-//     {
-//         i += enf;
-//         line.append(delim, enf);
-//     }
-//     if ((enf += recv(fd, &nl, 2, 0)) > 0 && (nl[0] ==  13 && nl[1] == '\n'))
-//         return i;
-//     return (-1);
-// }
+    while ((enf += recv(fd, &delim, 1, 0))> 0 && delim != 0)
+    {
+        if (delim == 13)
+        {
+            if ((enf += recv(fd, &nl, 1, 0)) > 0 && (nl == '\n' || nl == 0))
+                break;
+            line.push_back(delim); 
+            line.push_back(nl); 
+        }
+        else
+            line.push_back(delim); 
+    }
+    return (nl == 0||delim == 0 || line.size() == 0 ? 0 : enf);
+}
 
-// void headerpars(int fd, Request& ss)
-// {
-//     string line;
-//     vector<string> str;
-//     int i, j;
+# define delim_size 200
 
-//     for(i = 0;(j = getnextline(fd, line))> 0; i++)
-//     {
-//         if(line.size() == 0) return ;
-//         str = split(line, ' ');
-//         if (i == 0)
-//         {
-//             ss.setrqmethod(str[0]);
-//             ss.setlocation(str[1]);
-//             ss.setversion(str[2]);
-//         }
-//         else
-//         {
-//             str = split(line, ':');
-//             ss.addheaders(str[0],str[1].substr(1, str[1].size()));
-//         }
-//         line.clear();
-//     }
-// }
+int getlenline(int fd, string &line, int len)
+{
+    char delim[delim_size + 1];
+    char nl[2];
+    int enf = 0, k =0;
+    int i = 0;
 
-// void chunked_body_pars(int fd, Request& ss, pollfd &fds)
-// {
-//     string line;
-//     vector<string> str;
-//     int i, j;
-//     int req_len = ss.get_headrs().count("Content-Length")? stoi( ss.get_headrs().find("Content-Length")->second) : 0; // update
-//     int body_len = 0;
-//     int k =1;
-//     int len = 0;
+    while (i < len && (enf = recv(fd, &delim, i +delim_size< len? delim_size : (len - i), 0))> 0)
+    {
+        i += enf;
+        line.append(delim, enf);
+    }
+    if ((enf += recv(fd, &nl, 2, 0)) > 0 && (nl[0] ==  13 && nl[1] == '\n'))
+        return i;
+    return (-1);
+}
 
-//     if (ss.get_body_len() <= req_len)
-//     {
-//         string stmp ;
-//         getnextline(fd, stmp);
-//         cout << stmp << endl;
+void headerpars(int fd, Request& ss)
+{
+    string line;
+    vector<string> str;
+    int i, j;
 
-//         if (isxdigit(stmp[0])) 
-//             len = stol(stmp, nullptr, 16);
-//         stmp.clear();
-//         if (len > 0)
-//         {
-//             body_len += getlenline(fd, stmp, len);
-//             cout << len  << " :chunk length : "<< body_len << endl;
-//             ss.addbody(stmp, body_len);
-//         }
-//         else if (len == 0)
-//         {
-//             cout << len << " :final byte"<< endl;
-//             if (getlenline(fd, stmp, 1) == 1)
-//                 cout << "content length > " << endl;
-//             fds.events = POLLOUT;
-//         }
-//     }
-//     else
-//     {
-//         cout << "error" << endl;
-//         fds.events = POLLOUT;
-//     }
-//     cout <<ss.get_body_len() <<" == " << req_len << endl;
-// }
+    for(i = 0;(j = getnextline(fd, line))> 0; i++)
+    {
+        if(line.size() == 0) return ;
+        str = split(line, ' ');
+        if (i == 0)
+        {
+            ss.setrqmethod(str[0]);
+            ss.setlocation(str[1]);
+            ss.setversion(str[2]);
+        }
+        else
+        {
+            str = split(line, ':');
+            ss.addheaders(str[0],str[1].substr(1, str[1].size()));
+        }
+        line.clear();
+    }
+}
 
-// void body_pars(int fd, Request& ss, pollfd &fds)
-// {
-//     string line;
+void chunked_body_pars(int fd, Request& ss, pollfd &fds)
+{
+    string line;
+    vector<string> str;
+    int i, j;
+    int req_len = ss.get_headrs().count("Content-Length")? stoi( ss.get_headrs().find("Content-Length")->second) : 0; // update
+    int body_len = 0;
+    int k =1;
+    int len = 0;
 
-//     int len = stoi(ss.get_headrs().find("Content-Length")->second);
-//     getlenline(fd, ss.body, len);
-//     if (getlenline(fd, line, 1) > 0)
-//         cout << "Content-Length < content len " << endl;
-//     fds.events = POLLOUT;
-// }
+    if (ss.get_body_len() <= req_len)
+    {
+        string stmp ;
+        getnextline(fd, stmp);
+        cout << stmp << endl;
 
-// void Requeststup(int fd, Request& ss, pollfd &fds)
-// {
-//     string line;
-//     vector<string> str;
-//     int i, j;
+        if (isxdigit(stmp[0])) 
+            len = stol(stmp, nullptr, 16);
+        stmp.clear();
+        if (len > 0)
+        {
+            body_len += getlenline(fd, stmp, len);
+            cout << len  << " :chunk length : "<< body_len << endl;
+            ss.addbody(stmp, body_len);
+        }
+        else if (len == 0)
+        {
+            cout << len << " :final byte"<< endl;
+            if (getlenline(fd, stmp, 1) == 1)
+                cout << "content length > " << endl;
+            fds.events = POLLOUT;
+        }
+    }
+    else
+    {
+        cout << "error" << endl;
+        fds.events = POLLOUT;
+    }
+    cout <<ss.get_body_len() <<" == " << req_len << endl;
+}
 
-//     cout << "header :" << ss.empty_header() << endl;
-//     if (ss.empty_header())
-//         headerpars(fd, ss);
-//     else if(ss.get_headrs().count("Transfer-Encoding"))
-//         chunked_body_pars(fd, ss, fds);
-//     else if(ss.get_headrs().count("Content-Length"))
-//         body_pars(fd, ss, fds);
-//     if (!ss.get_headrs().count("Content-Length"))
-//         fds.events = POLLOUT;
-//     cout << "||||||||||||||||||||||||||||||||||||||||||" << endl;
-// }
+void body_pars(int fd, Request& ss, pollfd &fds)
+{
+    string line;
+
+    int len = stoi(ss.get_headrs().find("Content-Length")->second);
+    getlenline(fd, ss.body, len);
+    if (getlenline(fd, line, 1) > 0)
+        cout << "Content-Length < content len " << endl;
+    fds.events = POLLOUT;
+}
+
+void Requeststup(int fd, Request& ss, pollfd &fds)
+{
+    string line;
+    vector<string> str;
+    int i, j;
+
+    cout << "header :" << ss.empty_header() << endl;
+    if (ss.empty_header())
+        headerpars(fd, ss);
+    else if(ss.get_headrs().count("Transfer-Encoding"))
+        chunked_body_pars(fd, ss, fds);
+    else if(ss.get_headrs().count("Content-Length"))
+        body_pars(fd, ss, fds);
+    if (!ss.get_headrs().count("Content-Length") || ss.get_headrs().at("Content-Length") == "0")
+        fds.events = POLLOUT;
+    cout << "||||||||||||||||||||||||||||||||||||||||||" << endl;
+}
 
 int guard(int n, string err)
 {
@@ -228,25 +228,25 @@ void addclienttoserver(server &ss,vector<client>& clients,vector<pollfd> &fds, i
 
 
 
-// void delete_client(vector<client>& clients, int i, int d ,vector<pollfd> &fds)
-// {
-//     int k =0;
+void delete_client(vector<client>& clients, int i, int d ,vector<pollfd> &fds)
+{
+    int k =0;
 
-//     for (vector<client>::iterator it = clients.begin(); it != clients.end();k++, it++)
-//         if (k == i)
-//         {
-//             clients.erase(it);
-//             break ;
-//         }
-//     k = 0;
-//     for (vector<pollfd>::iterator it = fds.begin(); it != fds.end(); it++ , k++)
-//         if (k == d)
-//         {
-//             close ((*it).fd);
-//             fds.erase(it);
-//             break ;
-//         }
-// }
+    for (vector<client>::iterator it = clients.begin(); it != clients.end();k++, it++)
+        if (k == i)
+        {
+            clients.erase(it);
+            break ;
+        }
+    k = 0;
+    for (vector<pollfd>::iterator it = fds.begin(); it != fds.end(); it++ , k++)
+        if (k == d)
+        {
+            close ((*it).fd);
+            fds.erase(it);
+            break ;
+        }
+}
 
 
 
@@ -266,7 +266,7 @@ int main(int argc, char **argv)
     //serversetup(ss, argv[1]);
       /********************************/
     cout << root.get_server_vect()[0].get_name(0) << " " << root.get_server_vect()[0].get_listen_port() << "::"<< endl;
-    // map<int ,string> trr =ss[0].geterrorpages();
+    // map<int ,string> trr = ss[0].geterrorpages();
     /***********************/
     vector<server> ss(root.get_server_vect());
     servers(ss, fds);
@@ -289,12 +289,12 @@ int main(int argc, char **argv)
                     cout << it->first << ": " << it->second <<endl;
                 }
                 // cout << "body :" << clients[j].req.body << endl;
-                cout << "*" << clients[j].req.headers["Connection"] << "*----" << endl;
+                // cout << "*" << clients[j].req.headers["Connection"] << "*----" << endl;
             }
             else if (fds[i].revents != 0 && fds[i].revents & POLLOUT)
             {
                 std::string response = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
-                send(connection, response.c_str(), response.size(), 0);
+                send(fds[i].fd, response.c_str(), response.size(), 0);
                 fds[i].events = POLLIN;
         
     //                             /*********Response*********/
@@ -302,29 +302,29 @@ int main(int argc, char **argv)
     //             clients[j].respond(fds[i]);
     //                             /******************/
 
-    //             if (fds[i].events == POLLIN)
-    //             {
-    //                 delete(clients[j].res);
-    //                 clients[j].res = NULL;
-    //                 clients[j].req.clear();
-    //             }
-    //             if (!(clients[j].req.headers.count("Connection") && clients[j].req.headers.at("Connection") == "keep-alive"))
-    //                 delete_client(clients, j--, i, fds);
+                if (fds[i].events == POLLIN)
+                {
+                    // delete(clients[j].res);
+                    // clients[j].res = NULL;
+                    clients[j].req.clear();
+                }
+                if (!(clients[j].req.headers.count("Connection") && clients[j].req.headers.at("Connection") == "keep-alive"))
+                    delete_client(clients, j--, i, fds);
             }
-    //         else if (fds[i].revents != 0 && fds[i].revents & POLLHUP)
-    //         {
-    //             delete_client(clients, j--, i, fds);
-    //             continue;
-    //         }
-    //         if (fds[i].events == POLLIN) 
-    //             fds[i].events = POLLHUP;
-    //         else if (fds[i].events == POLLHUP)
-    //             fds[i].events = POLLIN;
+            else if (fds[i].revents != 0 && fds[i].revents & POLLHUP)
+            {
+                delete_client(clients, j--, i, fds);
+                continue;
+            }
+            // if (fds[i].events == POLLIN) 
+            //     fds[i].events = POLLHUP;
+            // else if (fds[i].events == POLLHUP)
+            //     fds[i].events = POLLIN;
         }
         for (int i = 0; i < root.get_server_vect().size(); i++)
             if (fds[i].revents != 0 && (fds[i].revents & POLLIN))
                 addclienttoserver(root.get_server_vect()[i], clients, fds, fds[i].fd);
-    //     cout<< "__________the_end____________" << endl;
+        cout<< "__________the_end____________" << endl;
     // }
     }
 

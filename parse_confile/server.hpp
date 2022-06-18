@@ -5,6 +5,19 @@
 #include "cgi.hpp"
 #include <string>
 #include <iostream>
+#include <netinet/in.h>
+
+#include <sys/socket.h> // For socket functions
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <arpa/inet.h>
+#include <fcntl.h>
+#include <sys/poll.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <sys/select.h>
+
+
 class location;
 class cgi;
 class server
@@ -80,5 +93,6 @@ public:
     std::vector<location>        get_location() const;
     std::vector<cgi>             get_cgi() const;
     server                       &operator=(server const & rhs);
+    sockaddr_in                  get_sock_ader();
 };
 #endif
