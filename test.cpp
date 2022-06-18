@@ -101,13 +101,16 @@ void chunked_body_pars(int fd, Request& ss, pollfd &fds)
     int req_len = ss.get_headrs().count("Content-Length")? stoi( ss.get_headrs().find("Content-Length")->second) : 0; // update
     int body_len = 0;
     int k =1;
+    int len = 0;
 
     if (ss.get_body_len() <= req_len)
     {
         string stmp ;
         getnextline(fd, stmp);
         cout << stmp << endl;
-        int len = stol(stmp, nullptr, 16);
+
+        if (isxdigit(stmp[0])) 
+            stol(stmp, nullptr, 16);
         stmp.clear();
         if (len > 0)
         {
@@ -118,8 +121,8 @@ void chunked_body_pars(int fd, Request& ss, pollfd &fds)
         else if (len == 0)
         {
             cout << len << " :final byte"<< endl;
-            if (getlenline(fd, stmp, 0) == 0)
-                cout << "content length == 0 " << endl;
+            if (getlenline(fd, stmp, 1) == 1)
+                cout << "content length > " << endl;
             fds.events = POLLOUT;
         }
     }
@@ -162,7 +165,7 @@ void Requeststup(int fd, Request& ss, pollfd &fds)
 
 int guard(int n, string err)
 {
-    if (n == -1)
+    if (n < 0)
     {
         cout << (err) << endl; 
         exit(1); 
@@ -191,28 +194,14 @@ void servers(vector<server> &ss,vector<pollfd> &fds)
         sockaddr.sin_addr.s_addr = inet_addr(ss[i].addr.c_str());
         sockaddr.sin_port = htons(ss[i].port);
         int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-        if ((ss[i].sockfd = sockfd) == -1) 
-        {
-            std::cout << "Failed to create socket. errno: " << errno << std::endl;
-            exit(EXIT_FAILURE);
-        }
-
-
+        guard((ss[i].sockfd = sockfd), "Failed to create socket.");
         int flags = guard(fcntl(sockfd, F_GETFL), "could not get flags on TCP listening socket");
         guard(fcntl(sockfd, F_SETFL, O_NONBLOCK | flags), "could not set TCP listening socket to be non-blocking");
-
-
-        if (bind(ss[i].sockfd, (struct sockaddr*)&sockaddr, sizeof(sockaddr)) < 0)
-        {
-            std::cout << "Failed to bind to port "<< ss[0].port <<". errno: " << errno << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        if (listen(sockfd, 255) < 0) 
-        {
-            std::cout << "Failed to listen on socket. errno: " << errno << std::endl;
-            exit(EXIT_FAILURE);
-        }
+        guard((int)bind(ss[i].sockfd, (struct sockaddr*)&sockaddr, sizeof(sockaddr)),"Failed to bind.");
+        guard(listen(sockfd, 255), "Failed to listen on socket.");
+        /************/
         ss[i].sockaddr = sockaddr;
+        /*************/
         fd.fd = ss[i].sockfd;
         fd.events = POLLIN;
         fds.push_back(fd);
@@ -224,14 +213,10 @@ void addclienttoserver(server &ss,vector<client>& clients,vector<pollfd> &fds)
     string str = "client";
     client stmp;
     size_t addrlen = sizeof(ss.sockaddr);
-    int connection = accept(ss.sockfd, (struct sockaddr*)&ss.sockaddr, (socklen_t*)&addrlen);
     pollfd fds1;
                 
-    if (connection < 0)
-    {
-        std::cout << "Failed to grab connection= "<< ss.get_name() <<". errno: " << errno << std::endl;
-        return ;
-    }
+    int connection = accept(ss.sockfd, (struct sockaddr*)&ss.sockaddr, (socklen_t*)&addrlen);
+    guard(connection, "Failed to grab connection.");
     fds1.fd = connection;
     fds1.events = POLLIN;
     fds.push_back(fds1);
@@ -278,38 +263,19 @@ int main(int argc, char **argv)
     vector<pollfd> fds;
 
       /********************************/
-
-
     serversetup(ss, argv[1]);
-
-
       /********************************/
-
-    cout << "Fwef" <<endl;
-
     cout << ss[0].name << " " << ss[0].addr << "::"<<  ss[0].port << ":" << ss.size() << " : "<< ss[0].location.begin()->first  << endl;
     map<int ,string> trr =ss[0].geterrorpages();
-
-
+    /***********************/
     servers(ss, fds);
 
-    
-    
     while (1)
     {
-        // for (int i = 0; i < ss.size() ; i++)
-        // {
-        //     fds[i].events = POLLIN;
-        // }
-        int rc = poll(fds.data(), fds.size(), -1);
-        if (rc < 0)
-        {
-            perror("serv poll() failed");
-            break;
-        }
+        guard(poll(fds.data(), fds.size(), -1), "serv poll() failed");
+    
         for (int i = ss.size(), j = 0; i < clients.size() + ss.size(); i++, j++)
         {
-            
             if (fds[i].revents != 0 && fds[i].revents & POLLIN)
             {
                 cout << j << ": index :";
@@ -332,8 +298,6 @@ int main(int argc, char **argv)
                 clients[j].respond(fds[i]);
                                 /******************/
 
-
-                // fds[i].events = POLLIN;
                 if (fds[i].events == POLLIN)
                 {
                     delete(clients[j].res);
@@ -341,16 +305,21 @@ int main(int argc, char **argv)
                     clients[j].req.clear();
                 }
                 if (!(clients[j].req.headers.count("Connection") && clients[j].req.headers.at("Connection") == "keep-alive"))
-                    delete_client(clients, j, i, fds);
-                // else
-                //     clients[j].req.clear();
+                    delete_client(clients, j--, i, fds);
             }
+            else if (fds[i].revents != 0 && fds[i].revents & POLLHUP)
+            {
+                delete_client(clients, j--, i, fds);
+                continue;
+            }
+            if (fds[i].events == POLLIN) 
+                fds[i].events = POLLHUP;
+            else if (fds[i].events == POLLHUP)
+                fds[i].events = POLLIN;
         }
         for (int i = 0; i < ss.size(); i++)
-        {
-            if (fds[i].revents != 0 && fds[i].revents & POLLIN)
+            if (fds[i].revents != 0 && (fds[i].revents & POLLIN))
                 addclienttoserver(ss[i], clients, fds);
-        }
         cout<< "__________the_end____________" << endl;
     }
     //}

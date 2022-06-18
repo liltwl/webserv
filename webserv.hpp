@@ -175,8 +175,13 @@ class Request
         string body;
         size_t body_len;
 
+    public :
 
         Request(): body_len(0) {}
+        Request(Request const& other)
+        {
+            *this = other;
+        }
         Request& operator=(Request const& other)
         {
             if (this != &other)
@@ -190,6 +195,7 @@ class Request
             }
             return *this;
         }
+
         void setrqmethod(string val)
         {
             rqmethod = val;
@@ -199,6 +205,7 @@ class Request
         {
             location = val;
         }
+
         void setversion(string val)
         {
             vrs = val;
@@ -211,6 +218,37 @@ class Request
         {
             body += line;
             body_len += len;
+        }
+
+        string get_method()
+        {
+            return rqmethod;
+        }
+
+        string  get_location()
+        {
+            return location;
+        }
+
+
+        string get_version()
+        {
+            return vrs;
+        }
+
+        map<string, string> get_headrs()
+        {
+            return headers;
+        }
+
+        string get_body()
+        {
+            return body;
+        }
+
+        size_t get_body_len()
+        {
+            return body_len;
         }
 
         void clear()
@@ -230,20 +268,9 @@ class Request
             return 0;
         }
 
-        map<string, string> get_headrs()
-        {
-            return headers;
-        }
-
-        size_t get_body_len()
-        {
-            return body_len;
-        }
-
         size_t empty()
         {
-            cout << rqmethod.empty()<< " empty" << endl;
-            return (rqmethod.empty());
+            return (rqmethod.empty() || location.empty() || vrs.empty());
         }
 };
 
