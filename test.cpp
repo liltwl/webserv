@@ -110,7 +110,7 @@ void chunked_body_pars(int fd, Request& ss, pollfd &fds)
         cout << stmp << endl;
 
         if (isxdigit(stmp[0])) 
-            stol(stmp, nullptr, 16);
+            len = stol(stmp, nullptr, 16);
         stmp.clear();
         if (len > 0)
         {
