@@ -142,7 +142,7 @@ void body_pars(int fd, Request& ss, pollfd &fds)
     string line;
 
     int len = stoi(ss.get_headrs().find("Content-Length")->second);
-    getlenline(fd, ss.body, len);
+    getlenline(fd, ss.get_body(), len);
     if (getlenline(fd, line, 1) > 0)
         cout << "Content-Length < content len " << endl;
     fds.events = POLLOUT;
@@ -257,14 +257,11 @@ int main(int argc, char **argv)
     string line;
     vector<client> clients;
     // Request req;
-    // int maxfd=0;
     vector<pollfd> fds;
     parse_config root;
 
     root.before_start_parsing(argc, argv);
-      /********************************/
-    //serversetup(ss, argv[1]);
-      /********************************/
+
     cout << root.get_server_vect()[0].get_name(0) << " " << root.get_server_vect()[0].get_listen_port() << "::"<< endl;
     // map<int ,string> trr = ss[0].geterrorpages();
     /***********************/
@@ -283,11 +280,11 @@ int main(int argc, char **argv)
                 Requeststup(fds[i].fd, clients[j].req, fds[i]);
                 if (clients[j].req.empty())
                     continue;
-                cout << clients[j].req.rqmethod << " " << clients[j].req.location << " " << clients[j].req.vrs << endl;  //hadi dyal rqst lbghiti tpintehom
-                for (map<string, string>::iterator it = clients[j].req.headers.begin(); it != clients[j].req.headers.end(); it++)
-                {
-                    cout << it->first << ": " << it->second <<endl;
-                }
+                // cout << clients[j].req.rqmethod << " " << clients[j].req.location << " " << clients[j].req.vrs << endl;  //hadi dyal rqst lbghiti tpintehom
+                // for (map<string, string>::iterator it = clients[j].req.headers.begin(); it != clients[j].req.headers.end(); it++)
+                // {
+                //     cout << it->first << ": " << it->second <<endl;
+                // }
                 // cout << "body :" << clients[j].req.body << endl;
                 // cout << "*" << clients[j].req.headers["Connection"] << "*----" << endl;
             }
@@ -306,10 +303,11 @@ int main(int argc, char **argv)
                 {
                     // delete(clients[j].res);
                     // clients[j].res = NULL;
-                    clients[j].req.clear();
+                    if (!(clients[j].req.get_headrs().count("Connection") && clients[j].req.get_headrs().at("Connection") == "keep-alive"))
+                        delete_client(clients, j--, i, fds);
+                    else
+                        clients[j].req.clear();
                 }
-                if (!(clients[j].req.headers.count("Connection") && clients[j].req.headers.at("Connection") == "keep-alive"))
-                    delete_client(clients, j--, i, fds);
             }
             else if (fds[i].revents != 0 && fds[i].revents & POLLHUP)
             {

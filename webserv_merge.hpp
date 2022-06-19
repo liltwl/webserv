@@ -31,7 +31,7 @@ using namespace std;
 
 class Request
 {
-    public :
+    private :
         string rqmethod;
         string location;
         string vrs;
@@ -105,7 +105,7 @@ class Request
             return headers;
         }
 
-        string get_body()
+        string& get_body()
         {
             return body;
         }
