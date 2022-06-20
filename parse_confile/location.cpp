@@ -20,6 +20,7 @@ location::location(const location &obj)
 }
 
 std::string                 location::get_locations_path() const{ return this->_locations_path; }
+std::string                 location::get_name() const{ return this->_name; }
 std::vector<std::string>    location::get_methods() const { return this->_allow_methods; }
 std::vector<std::string>    location::get_index() const { return this->_index; }
 std::string                 location::get_root() const { return this->_root; }

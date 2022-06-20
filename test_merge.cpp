@@ -1,5 +1,5 @@
 #include "webserv_merge.hpp"
-// #include "Response.hpp"
+#include "Response.hpp"
 
 using namespace std;
 
@@ -221,6 +221,8 @@ void addclienttoserver(server &ss,vector<client>& clients,vector<pollfd> &fds, i
     fds.push_back(fds1);
     stmp.set_fd(connection);
     stmp.set_serv(ss);
+
+    cout << ss.get_name(0) <<"  thse seerver is"<< endl;
     clients.push_back(stmp);
     cout << "client 200 ok" << endl;
 }
@@ -280,29 +282,30 @@ int main(int argc, char **argv)
                 Requeststup(fds[i].fd, clients[j].req, fds[i]);
                 if (clients[j].req.empty())
                     continue;
-                // cout << clients[j].req.rqmethod << " " << clients[j].req.location << " " << clients[j].req.vrs << endl;  //hadi dyal rqst lbghiti tpintehom
-                // for (map<string, string>::iterator it = clients[j].req.headers.begin(); it != clients[j].req.headers.end(); it++)
-                // {
-                //     cout << it->first << ": " << it->second <<endl;
-                // }
+                cout << clients[j].req.rqmethod << " " << clients[j].req.location << " " << clients[j].req.vrs << endl;  //hadi dyal rqst lbghiti tpintehom
+                for (map<string, string>::iterator it = clients[j].req.headers.begin(); it != clients[j].req.headers.end(); it++)
+                {
+                    cout << it->first << ": " << it->second <<endl;
+                }
                 // cout << "body :" << clients[j].req.body << endl;
                 // cout << "*" << clients[j].req.headers["Connection"] << "*----" << endl;
             }
             else if (fds[i].revents != 0 && fds[i].revents & POLLOUT)
             {
-                std::string response = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
-                send(fds[i].fd, response.c_str(), response.size(), 0);
-                fds[i].events = POLLIN;
+                // std::string response = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
+                // send(fds[i].fd, response.c_str(), response.size(), 0);
+                // fds[i].events = POLLIN;
         
     //                             /*********Response*********/
 
-    //             clients[j].respond(fds[i]);
+                clients[j].respond(fds[i]);
+                cout << "halola\n\n\n\n"<< endl;
     //                             /******************/
-
+                
                 if (fds[i].events == POLLIN)
                 {
-                    // delete(clients[j].res);
-                    // clients[j].res = NULL;
+                    delete(clients[j].res);
+                    clients[j].res = NULL;
                     if (!(clients[j].req.get_headrs().count("Connection") && clients[j].req.get_headrs().at("Connection") == "keep-alive"))
                         delete_client(clients, j--, i, fds);
                     else

@@ -222,6 +222,7 @@ void addclienttoserver(server &ss,vector<client>& clients,vector<pollfd> &fds)
     fds.push_back(fds1);
     stmp.set_fd(connection);
     stmp.set_serv(ss);
+    cout << ss.get_name(0) <<"  thse seerver is"<< endl;
     clients.push_back(stmp);
     cout << "client 200 ok" << endl;
 }

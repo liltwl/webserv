@@ -14,6 +14,7 @@ protected:
     std::string                 _locations_path;
     std::vector<std::string>    _allow_methods;
     std::string                 _root;
+    
     long long int               _client_max_body_size;
     std::vector<std::string>    _index;
     bool                        _autoindex;
@@ -24,6 +25,7 @@ public:
     location (const location &obj);
     void                        set_upload_path(std::string upload_path);
     std::string                 get_upload_path() const;
+    std::string                 get_name() const;
     std::string                 get_locations_path() const;
     std::vector<std::string>    get_methods() const;
     std::string                 get_root() const;
