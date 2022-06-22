@@ -1,0 +1,1 @@
+c++  ./test_merge.cpp ./request.cpp parse_confile/*.cpp -o webserv

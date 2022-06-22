@@ -12,6 +12,7 @@
         "random": "cpp",
         "stack": "cpp",
         "string_view": "cpp",
-        "utility": "cpp"
+        "utility": "cpp",
+        "ostream": "cpp"
     }
 }

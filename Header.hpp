@@ -1,6 +1,6 @@
  #pragma once
 
-#include "webserv_merge.hpp"
+#include "request.hpp"
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>

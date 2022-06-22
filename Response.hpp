@@ -1,6 +1,6 @@
  #pragma once
 
-#include "webserv_merge.hpp"
+#include "request.hpp"
 #include "Header.hpp"
 #include <dirent.h>
 #include <sys/types.h>
@@ -130,7 +130,7 @@ int Response::handlerequest(Request &req, server &serv)
     {
         return 405;
     }
-        if(req.get_method() == "GET")
+    if(req.get_method() == "GET")
     {
         return this->handleGet();
     }
@@ -342,7 +342,7 @@ class client
     }
     void respond(pollfd &fds)
     {
-        if(!this->res)
+        if(this->res == NULL && !this->req.empty_header())
         {
            cout << "respond forfdfdd" << endl;
             cout << "hannibal " << ss->get_name(0) << endl;

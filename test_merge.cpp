@@ -1,8 +1,8 @@
-#include "webserv_merge.hpp"
+#include "request.hpp"
 #include "Response.hpp"
 
 using namespace std;
-
+# define delim_size 200
 
 vector<string> split (const string &s, char delim)
 {
@@ -29,8 +29,6 @@ void ft_spaceskip(string &line)
     line.erase(0,i);
 }
 
-
-
 int getnextline(int fd, string &line)
 {
     char delim;
@@ -51,8 +49,6 @@ int getnextline(int fd, string &line)
     }
     return (nl == 0||delim == 0 || line.size() == 0 ? 0 : enf);
 }
-
-# define delim_size 200
 
 int getlenline(int fd, string &line, int len)
 {
@@ -81,11 +77,16 @@ void headerpars(int fd, Request& ss)
     {
         if(line.size() == 0) return ;
         str = split(line, ' ');
-        if (i == 0)
+        if (i == 0 && str.size() > 2)
         {
             ss.setrqmethod(str[0]);
             ss.setlocation(str[1]);
             ss.setversion(str[2]);
+        }
+        else if (i == 0 && !(str.size() > 2))
+        {
+            ss.setbody_limit(-1);
+            return ;
         }
         else
         {
@@ -161,7 +162,7 @@ void Requeststup(int fd, Request& ss, pollfd &fds)
         chunked_body_pars(fd, ss, fds);
     else if(ss.get_headrs().count("Content-Length"))
         body_pars(fd, ss, fds);
-    if (!ss.get_headrs().count("Content-Length") || ss.get_headrs().at("Content-Length") == "0")
+    if (!ss.get_headrs().count("Transfer-Encoding") && (!ss.get_headrs().count("Content-Length") || ss.get_headrs().at("Content-Length") == "0"))
         fds.events = POLLOUT;
     cout << "||||||||||||||||||||||||||||||||||||||||||" << endl;
 }
@@ -198,8 +199,6 @@ void servers(vector<server> ss,vector<pollfd> &fds)
         guard(fcntl(sockfd, F_SETFL, O_NONBLOCK | flags), "could not set TCP listening socket to be non-blocking");
         guard((int)bind(sockfd, (struct sockaddr*)&sockaddr, sizeof(sockaddr)),"Failed to bind.");
         guard(listen(sockfd, 255), "Failed to listen on socket.");
-        /************/
-        /*************/
         fd.fd = sockfd;
         fd.events = POLLIN;
         fds.push_back(fd);
@@ -237,6 +236,7 @@ void delete_client(vector<client>& clients, int i, int d ,vector<pollfd> &fds)
     for (vector<client>::iterator it = clients.begin(); it != clients.end();k++, it++)
         if (k == i)
         {
+            cout << "delete client num :"<< i <<endl;
             clients.erase(it);
             break ;
         }
@@ -251,9 +251,6 @@ void delete_client(vector<client>& clients, int i, int d ,vector<pollfd> &fds)
 }
 
 
-
-
-
 int main(int argc, char **argv)
 {
     string line;
@@ -263,9 +260,7 @@ int main(int argc, char **argv)
     parse_config root;
 
     root.before_start_parsing(argc, argv);
-
     cout << root.get_server_vect()[0].get_name(0) << " " << root.get_server_vect()[0].get_listen_port() << "::"<< endl;
-    // map<int ,string> trr = ss[0].geterrorpages();
     /***********************/
     vector<server> ss(root.get_server_vect());
     servers(ss, fds);
@@ -287,19 +282,13 @@ int main(int argc, char **argv)
                 {
                     cout << it->first << ": " << it->second <<endl;
                 }
-                // cout << "body :" << clients[j].req.body << endl;
-                // cout << "*" << clients[j].req.headers["Connection"] << "*----" << endl;
             }
             else if (fds[i].revents != 0 && fds[i].revents & POLLOUT)
             {
-                // std::string response = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
-                // send(fds[i].fd, response.c_str(), response.size(), 0);
-                // fds[i].events = POLLIN;
-        
     //                             /*********Response*********/
 
                 clients[j].respond(fds[i]);
-                cout << "halola\n\n\n\n"<< endl;
+                // cout << "halola\n\n\n\n"<< endl;
     //                             /******************/
                 
                 if (fds[i].events == POLLIN)
@@ -307,7 +296,10 @@ int main(int argc, char **argv)
                     delete(clients[j].res);
                     clients[j].res = NULL;
                     if (!(clients[j].req.get_headrs().count("Connection") && clients[j].req.get_headrs().at("Connection") == "keep-alive"))
+                    {
                         delete_client(clients, j--, i, fds);
+                        continue ;
+                    }
                     else
                         clients[j].req.clear();
                 }
@@ -317,10 +309,11 @@ int main(int argc, char **argv)
                 delete_client(clients, j--, i, fds);
                 continue;
             }
-            // if (fds[i].events == POLLIN) 
-            //     fds[i].events = POLLHUP;
-            // else if (fds[i].events == POLLHUP)
-            //     fds[i].events = POLLIN;
+            cout << fds[i].events<<endl;
+            if (fds[i].events & POLLIN) 
+                fds[i].events = POLLHUP;
+            else if (fds[i].events & POLLHUP)
+                fds[i].events = POLLIN;
         }
         for (int i = 0; i < root.get_server_vect().size(); i++)
             if (fds[i].revents != 0 && (fds[i].revents & POLLIN))
@@ -330,4 +323,3 @@ int main(int argc, char **argv)
     }
 
 }
-//}
