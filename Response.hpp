@@ -7,10 +7,27 @@
 #include <sys/stat.h>
 using namespace std;
 
+
+string renderpage(string filename)
+{
+
+    ifstream f(filename); //taking file as inputstream
+   string str;
+   if(f) {
+      ostringstream ss;
+      ss << f.rdbuf(); // reading data
+      str = ss.str();
+   }
+    
+    return str;
+    
+};
 class Response
 {
     private:
         string methode;
+        bool    indexstats;
+        string  index_path;
         long size;
         string rlocation;
         string body;
@@ -43,11 +60,14 @@ class Response
         
         this->methode = req.get_method();
         this->path = "";
+        this->indexstats = false;
 
     }
     long get_size(){return this->size;};
+    int handleredirection();
     void renderindex(string path);
     string responde();
+    int findindexfile(string paths);
 
 int handlerequest(Request &req, server &serv);
 };
@@ -58,33 +78,35 @@ void Response::findlocation()
     string path;
     int matchsize = 0;
     cout << "ttttt" << endl;
-    //cout <<  this->serv.get_location(i).get_name() << endl;
-    cout <<  serv.get_name(0) << endl;
+    cout <<  this->serv.get_location(0).get_locations_path() << "  alaliss"<<endl;
+    
     for(int i = 0; i < this->serv.get_location_size();i++)
     {
-        cout <<  serv.get_name(0) << endl;
-        if(strncmp(this->req.get_location().c_str(),this->serv.get_location(i).get_name().c_str(),this->serv.get_location(i).get_name().size()) == 0 && matchsize < this->serv.get_location(i).get_name().size()) // chack if the request location exist in the config file locations and icrement i[0]
+        //cout <<  serv.get_name(0) << endl;
+        if(strncmp(this->req.get_location().c_str(),this->serv.get_location(i).get_locations_path().c_str(),this->serv.get_location(i).get_locations_path().size()) == 0 && matchsize < this->serv.get_location(i).get_locations_path().size()) // chack if the request location exist in the config file locations and icrement i[0]
         {
-            path = this->serv.get_location(i).get_name() ;
+            path = this->serv.get_location(i).get_locations_path() ;
            // cout <<
             //cout <<  this->serv.get_location(i).get_name() << endl;
-            matchsize = this->serv.get_location(i).get_name().size();
+            matchsize = this->serv.get_location(i).get_locations_path().size();
             this->reqloc = this->serv.get_location(i);
+
+            
         }
     }
-    cout << "aaaaa" << endl;
+   
     if(matchsize > 0)
     {
         this->rlocation = path;
     }
     else
         this->rlocation = this->serv.get_root();
-   
-
+    int c = 0;
 }
 bool checkmethod(server &serv, string location , string Method)
 {
     std::vector<std::string> methods = serv.get_allowed_methods();
+   
     if(location == serv.get_root())
     {
         if(find(methods.begin(),methods.end(),Method) != methods.end())
@@ -94,15 +116,17 @@ bool checkmethod(server &serv, string location , string Method)
     }
     else
     {
-        for(int i = 0 ; i <= serv.get_location_size(); i++)
+       
+        for(int i = 0 ; i < serv.get_location_size(); i++)
         {
-            if(serv.get_location(i).get_name() == location)
+            if(serv.get_location(i).get_locations_path() == location)
             {
                 methods = serv.get_location(i).get_methods();
                 if(find(methods.begin(),methods.end(),Method) != methods.end())
                     return true;
             }
         }
+        cout << "respond ZZZZZ" << endl;
         return(false);
     }
 };
@@ -121,18 +145,43 @@ int finddir(string path) // this function ruturns 0 i it's not a file nor a dire
     else
         return 0;
 }
+int Response::handleredirection()
+{
+ //std::vector<string> redi;
+    int i = 0;
+
+    while(i < this->serv.get_redirections_size())
+    {
+        if(this->req.get_location() == this->serv.get_redirections(i).front())
+        {
+            this->header->setHeader("Location",this->serv.get_redirections(i).back());
+            return(1);
+        }
+        i++;
+    }
+ return 0;   
+}
 int Response::handlerequest(Request &req, server &serv)
 {
     cout << "respond dsdsd"<< serv.get_name(0) << endl;
+    if(this->handleredirection() != 0)
+    {
+        return 301;
+    }
     this->findlocation();
-    cout << "respond ZZZZZ" << endl;
+    //cout << "respond ZZZZZ" << endl;
+
     if(checkmethod(serv,this->rlocation,req.get_method()) == false)
     {
         return 405;
     }
+    cout << "respond ZZZZZ" << endl;
         if(req.get_method() == "GET")
+
+        
     {
         return this->handleGet();
+       
     }
     else if(req.get_method() == "POST")
     {
@@ -171,16 +220,19 @@ void Response::renderindex(string paths)
     string str;
     DIR *dr;
     struct dirent *e;
-    dr = opendir(path.c_str());
+    dr = opendir(paths.c_str());
+    
     this->header->setHeader("Content-Type","Text/html");
     this->body = "<html>\n<head>\n<body>\n<table>\n";
+
     if(dr)
     {
-        
+        cout << "dir is " << paths << endl;
         while((e = readdir(dr)) != false)
         {
             if(e->d_name != string(".") && e->d_name != string(".."))
         {
+            //cout << "dir is " << paths << endl;
             this->body += string("<br>") ;
             if(this->req.get_location().back() == '/')
             {
@@ -195,51 +247,118 @@ void Response::renderindex(string paths)
         }
         }   
     }
+        
     this->body += "</table>\n</body>\n</head>\n</html>\n";
-    closedir(dr);
+    cout << "respond ZZZZZ" << endl;
+   // closedir(dr);
+    
     //return(this->body);
 }
-
+int Response::findindexfile(string paths)
+{
+    int i = 0;
+  
+    cout <<"tiza : "<< paths + this->reqloc.get_index(0) << endl;
+    while(i < this->reqloc.get_index_size())
+    {
+      if (finddir( paths + this->reqloc.get_index(i) ) == 1)
+      {
+        this->index_path = paths + this->reqloc.get_index(i);
+        cout <<"tiza :"<< this->req.get_location() + this->reqloc.get_index(i) << endl;
+        return(0);
+      }
+        i++;
+    }
+    return(1);
+}
 int Response::handleGet()
 {
     string paths;
+    
     if(this->rlocation != this->serv.get_root())
     {
-        paths = this->reqloc.get_root() + this->req.get_location().substr(this->rlocation.size());
+        paths = this->reqloc.get_root() ;
+       // paths.pop_back();
+        paths = paths + this->req.get_location().substr(this->rlocation.size());
     }
     else
     {
-        paths = this->serv.get_root() +  this->req.get_location();
+        
+        paths = this->serv.get_root() ;
+        //paths.pop_back();
+         cout << "this is the path :" <<this->rlocation<< endl;
+        paths = paths  + this->req.get_location();
+       
     }
+    
     if(finddir(paths) == 0)
     {
+        cout << "been here: " << paths << endl;
         return(404);
     }
     if(finddir(paths) == 1)
     {
         this->header->setHeader("Content-Type",get_type(this->req.get_location(), 1));
-        this->filesize = file_size(path);
+        this->filesize = file_size(paths);
         this->header->setHeader("Content-Length",to_string(this->filesize));
+        cout << paths  << "  akhuran" << endl;
+        this->body = renderpage(paths);
+        //cout << "the body " << endl;
         this->path = paths;
         return(200);
     }
     if(finddir(paths) == 2)
     {
-        if(this->serv.get_autoindex() == true)
+        if(this->req.get_location().back() != '/')
         {
-            if(this->req.get_location().back() != '/')
-            {
-                this->header->setHeader("Location",this->req.get_location() + "/");
-                return(301);
-            }
-            this->renderindex(paths);
-            return(200);
+            this->header->setHeader("Location",this->req.get_location() + "/");
+            return(301);
         }
-        else
-            return(403);
+       
+        if(this->req.get_location() == this->reqloc.get_locations_path() && this->reqloc.get_index_size() != 0)
+        {
+            if(this->findindexfile(paths) == 0)
+            {
+                this->header->setHeader("Content-Type",get_type(this->index_path, 1));
+                 this->filesize = file_size(this->index_path);
+                this->header->setHeader("Content-Length",to_string(this->filesize));
+                this->body = renderpage(paths) = renderpage(this->index_path);
+                cout << "we are here" << endl;
+                return(200);
+            }
+        }
+        if (this->rlocation == this->serv.get_root())
+        {
+                if(this->serv.get_autoindex() == true)
+                {
+
+                this->renderindex(paths);
+
+                return(200);
+                }
+                else 
+                 return(403);
+
+        }
+        else if(this->rlocation != this->serv.get_root())
+        {
+                if(this->reqloc.get_autoindex() == true)
+                {
+                    cout << "abcd "<<this->reqloc.get_locations_path() << endl;
+
+                    cout << paths <<  "  her nme" << endl;
+                    this->renderindex(paths);
+                    return (200);
+                }
+                else 
+                return(403);
+        }     
+
+
     }
-    return (205);
-    
+        else
+            return (205);
+
 };
 int Response::handlePost()
 {
@@ -252,52 +371,119 @@ int Response::handlePost()
     {
          file_name = this->serv.get_upload_path() + to_string(rand()) + "." + get_type(this->req.get_headrs()["Content-Type"], 2);
     }
-    ofstream f(file_name.c_str());
+    ofstream f(string("."+file_name).c_str());
     if(f)
     {
         f << this->req.get_body();
 
     }
+    cout << "upload is :" << file_name;
     this->uploadfile = file_name;
     return(201);
+};
+int deletedir(string path)
+{
+       
+        struct dirent *entry = NULL;
+        DIR *dir = NULL;
+        dir = opendir(path.c_str());
+         
+        while((entry = readdir(dir)))
+        {   
+                
+                DIR *sub_dir = NULL;
+                FILE *file = NULL;
+                string abs_path;
+                if(*(entry->d_name) != '.')
+                {   
+                        abs_path =  path + entry->d_name;
+
+                        //if((sub_dir == opendir(abs_path.c_str())))
+                        if((finddir(abs_path) == 2))
+                        {   
+                            sub_dir = opendir(abs_path.c_str());
+                            
+                                closedir(sub_dir);
+                                deletedir(abs_path.c_str());
+                        }   
+                        else 
+                        {   
+
+                                if(finddir(abs_path) == 1)
+                                { 
+                                        fclose(file);
+                                        if(remove(abs_path.c_str()) != 0)
+                                        {
+                                            return(1);
+                                        }
+                                }
+                                else
+                                {
+                                    
+                                    return(1);  
+                                }
+                        }   
+                }   
+        }   
+        if(remove(path.c_str())!= 0)
+        {
+
+            return(2);
+        }
+        return(0);
 };
 int Response::handleDelete()
 {
     string paths;
+
     if(this->rlocation != this->serv.get_root())
     {
-        paths = this->reqloc.get_root() + this->req.get_location().substr(this->rlocation.size());
+        paths = this->reqloc.get_root() ;
+        paths.pop_back();
+        paths = paths + this->req.get_location().substr(this->rlocation.size());
     }
     else
     {
-        paths = this->serv.get_root() +  this->req.get_location();
+        
+        paths = this->serv.get_root() ;
+        paths.pop_back();
+         cout << "this is the path :" <<this->rlocation<< endl;
+        paths = paths  + this->req.get_location();
+       
     }
     if(finddir(paths) == 0)
     {
         return(404);
     }
-    if(finddir(path) == 1)
+    if(finddir(paths) == 1)
     {
         int status;
-        status = remove(path.c_str());
+        status = remove(paths.c_str());
+        
         if(status == 0)
             return 204;
         else
-            if(access(path.c_str(),W_OK) == 0)
+            if(access(paths.c_str(),W_OK) == 0)
                 return 500;
             else
                 return (403);     
     }
+    
     if(finddir(paths) == 2)
     {
         if(this->req.get_location().back() != '/')
             return 409;
-        if(access(path.c_str(),W_OK) == 0)
+        
+        
+        if(access(paths.c_str(),W_OK) == 0)
         {
-            if(deletedir(path) == 0)
+            
+            if(deletedir(paths) == 0)
             {
+                cout << "qximiqs" << endl;
                 return 204;
             } 
+            
             else
                 return 500;
         }
@@ -350,9 +536,10 @@ class client
             res = new Response(req,*ss);
            cout << "respond forgesd" << endl;
             string a = res->responde();
+            
             send(fd, a.c_str(),res->get_size(),0);
-            cout << "wssl lhna" <<endl;
-            cout << a <<endl;
+            cout << res->get_size() <<endl;
+            //cout << a <<endl;
            // exit(10);
            fds.events = POLLIN;
         }
@@ -390,20 +577,7 @@ class client
    // }
 };
 
-string renderpage(string filename)
-{
 
-    ifstream f(filename); //taking file as inputstream
-   string str;
-   if(f) {
-      ostringstream ss;
-      ss << f.rdbuf(); // reading data
-      str = ss.str();
-   }
-    
-    return str;
-    
-}
 
 string Response::responde()
 {
@@ -413,19 +587,13 @@ string Response::responde()
     //: yummy_cookie=choco
     if(this->status == 200)
     {
-        if(this->path != "")
-        {
-            content += renderpage(this->path) ;
-            this->filesize = content.size();
-        }
-        else
-        {
-            content += this->body;
-            this->filesize = content.size();
-        }
+        cout << "zjzjzjz : " << this->path << endl;
+        content += this->body;
+        this->filesize = content.size();
     }
     else if (this->status != 200)
-    {   
+    {  
+        this->code.set_error(this->serv.get_error_pages(), this->status, this->serv.get_error_pages_size()) ;
         if(this->status == 201)
         {  
            content += this->code.get_errorhtml(this->status,this->uploadfile);
@@ -442,9 +610,10 @@ string Response::responde()
             header->setHeader("Content-Length" , to_string(this->filesize));
     else
             header->setHeader("Content-Length" , "0");
+    //  header->setHeader("Set-Cookie" , "yuupi=zaba");
     content = this->header->get_Header() + content;
-    header->setHeader("Set-Cookie" , "yuupi=choco");
-    //cout << content << endl;
+    
+    cout <<"----------------------------------" <<content << endl;
     this->size = content.size();
     return(content);
 };

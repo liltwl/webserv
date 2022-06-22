@@ -1,6 +1,7 @@
  #pragma once
 
 #include "webserv_merge.hpp"
+#include "./Response.hpp"
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -377,6 +378,8 @@ std::string get_type(string location, int mode)
 class Statuscode{
     private:
         map<string, string> codes;
+        string errorpage;
+        int error;
     public:
         Statuscode()
         {
@@ -391,21 +394,62 @@ class Statuscode{
             codes["403"] = "Forbidden";
             codes["409"] = "Conflit";
             codes["501"] = "Not Implemented;";
+            codes["205"] = "Reset Content;";
+            this->error = 0;
         }
         string get_code(int code)
         {
             return ("HTTP/1.1 " + to_string(code) + " " + codes[to_string(code)]);
         }
+        void set_error(vector<vector<string> > pages, int code, int size)
+        {
+            int i = 0;
+            vector<vector<string> >::iterator ptr;
+            for(ptr = pages.begin() ; ptr != pages.end(); ptr++)
+            {
+                cout << "is in this error : " << ptr->front()<< " "<< endl;
+                if(to_string(code) == ptr->back())
+                {
+                    this->error = 1;
+                    this->errorpage = ptr->front();
+                }
+            }
+            //cout << "is in this error : " <<this->errorpage << " "<< endl;
+        }
+        string renderpage(string filename,int code)
+        {
+      
+        ifstream f(filename); //taking file as inputstream
+        string str;
+        if(f) {
+        ostringstream ss;
+        ss << f.rdbuf(); // reading data
+        str = ss.str();
+        }
+        else
+            return("<!DOCTYPE html><html><head><title>" + codes[to_string(code)] + "</title></style</head><body><p><b>" + codes[to_string(code)]  + " " + to_string(code) + "</b></p></body></html>");
+    return str;
+        
+};
         string get_errorhtml(int code, string uploadfile)
         {
              string page;
-            if(code == 201)
+            if(this->error == 0)
             {
-                     page = "<!DOCTYPE html><html><head><title>" + codes[to_string(code)] + "</title></style</head><body><p><b>" + codes[to_string(code)]  + " " + to_string(code) +" here : " + uploadfile + "</b></p></body></html>";
+                if(code == 201)
+                {
+                         page = "<!DOCTYPE html><html><head><title>" + codes[to_string(code)] + "</title></style</head><body><p><b>" + codes[to_string(code)]  + " " + to_string(code) +" here : " + uploadfile + "</b></p></body></html>";
+                }
+                else
+                {
+                      
+                    page = "<!DOCTYPE html><html><head><title>" + codes[to_string(code)] + "</title></style</head><body><p><b>" + codes[to_string(code)]  + " " + to_string(code) + "</b></p></body></html>";
+                }
+                return page;
             }
             else
-                page = "<!DOCTYPE html><html><head><title>" + codes[to_string(code)] + "</title></style</head><body><p><b>" + codes[to_string(code)]  + " " + to_string(code) + "</b></p></body></html>";
-            return page;
+                return(this->renderpage(this->errorpage, code));
+
         }
 };
 string getDate()
@@ -454,40 +498,3 @@ class Header
     }
 };
 
-int deletedir(string path)
-{
-        struct dirent *entry = NULL;
-        DIR *dir = NULL;
-        dir = opendir(path.c_str());
-        while((entry = readdir(dir)))
-        {   
-                DIR *sub_dir = NULL;
-                FILE *file = NULL;
-                string abs_path;
-                if(*(entry->d_name) != '.')
-                {   
-                        abs_path =  path + entry->d_name;
-                        if((sub_dir == opendir(abs_path.c_str())))
-                        {   
-                                closedir(sub_dir);
-                                deletedir(abs_path.c_str());
-                        }   
-                        else 
-                        {   
-                                if(file == fopen(abs_path.c_str(), "w"))
-                                {   
-                                        fclose(file);
-                                        if(remove(abs_path.c_str()) != 0)
-                                        {
-                                            return(1);
-                                        }
-                                }
-                                else
-                                    return(1);  
-                        }   
-                }   
-        }   
-        if(remove(path.c_str())!= 0)
-            return(2);
-        return(0);
-};
