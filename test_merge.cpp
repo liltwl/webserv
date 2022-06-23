@@ -1,8 +1,8 @@
-#include "webserv_merge.hpp"
+#include "request.hpp"
 #include "Response.hpp"
 
 using namespace std;
-
+# define delim_size 2000
 
 vector<string> split (const string &s, char delim)
 {
@@ -29,8 +29,6 @@ void ft_spaceskip(string &line)
     line.erase(0,i);
 }
 
-
-
 int getnextline(int fd, string &line)
 {
     char delim;
@@ -52,8 +50,6 @@ int getnextline(int fd, string &line)
     return (nl == 0||delim == 0 || line.size() == 0 ? 0 : enf);
 }
 
-# define delim_size 200
-
 int getlenline(int fd, string &line, int len)
 {
     char delim[delim_size + 1];
@@ -66,12 +62,13 @@ int getlenline(int fd, string &line, int len)
         i += enf;
         line.append(delim, enf);
     }
-    if ((enf += recv(fd, &nl, 2, 0)) > 0 && (nl[0] ==  13 && nl[1] == '\n'))
+    cout << i << endl;
+    if ((enf = recv(fd, &nl, 2, 0)) > 0 && (nl[0] ==  13 && nl[1] == '\n'))
         return i;
-    return (-1);
+    return (enf == 0?i:-1);
 }
 
-void headerpars(int fd, Request& ss)
+void headerpars(int fd, Request& ss, client& clients)
 {
     string line;
     vector<string> str;
@@ -81,11 +78,16 @@ void headerpars(int fd, Request& ss)
     {
         if(line.size() == 0) return ;
         str = split(line, ' ');
-        if (i == 0)
+        if (i == 0 && str.size() > 2)
         {
             ss.setrqmethod(str[0]);
             ss.setlocation(str[1]);
             ss.setversion(str[2]);
+        }
+        else if (i == 0 && !(str.size() > 2))
+        {
+            ss.setbody_limit(-1);
+            return ;
         }
         else
         {
@@ -93,6 +95,22 @@ void headerpars(int fd, Request& ss)
             ss.addheaders(str[0],str[1].substr(1, str[1].size()));
         }
         line.clear();
+    }
+    if (!ss.empty_header())
+    {
+        string sr_name = ss.get_headrs().find("Host")->second;
+        vector<server>& serv = clients.serv;
+        for (int i = 0; i < serv.size(); i++)
+        {
+            for (int j = 0; j < serv[i].get_name_size(); j++)
+            {
+                if (sr_name == serv[i].get_name(j))
+                {
+                    clients.set_serv(serv[i]);
+                    break ;
+                }
+            }
+        }
     }
 }
 
@@ -125,13 +143,13 @@ void chunked_body_pars(int fd, Request& ss, pollfd &fds)
         {
             cout << len << " :final byte"<< endl;
             if (getlenline(fd, stmp, 1) == 1)
-                cout << "content length > " << endl;
+                ss.setbody_limit(-1);
             fds.events = POLLOUT;
         }
     }
     else
     {
-        cout << "error" << endl;
+        ss.setbody_limit(-1);
         fds.events = POLLOUT;
     }
     cout <<ss.get_body_len() <<" == " << req_len << endl;
@@ -142,27 +160,37 @@ void body_pars(int fd, Request& ss, pollfd &fds)
     string line;
 
     int len = stoi(ss.get_headrs().find("Content-Length")->second);
-    getlenline(fd, ss.get_body(), len);
+    ss.setbody_limit(getlenline(fd, ss.get_body(), len));
+
+    cout << ss.get_body_len() << endl;
     if (getlenline(fd, line, 1) > 0)
-        cout << "Content-Length < content len " << endl;
+        ss.setbody_limit(-1);
     fds.events = POLLOUT;
 }
 
-void Requeststup(int fd, Request& ss, pollfd &fds)
+void Requeststup(int fd, client& clients, pollfd &fds)
 {
     string line;
     vector<string> str;
+    Request& ss = clients.req;
     int i, j;
+    int max_body_size = clients.ss->get_client_max_body_size();
 
     cout << "header :" << ss.empty_header() << endl;
     if (ss.empty_header())
-        headerpars(fd, ss);
+        headerpars(fd, ss, clients);
     else if(ss.get_headrs().count("Transfer-Encoding"))
         chunked_body_pars(fd, ss, fds);
-    else if(ss.get_headrs().count("Content-Length"))
+    else if(ss.get_headrs().count("Content-Length") && stoi(ss.get_headrs().at("Content-Length")) <= max_body_size)
         body_pars(fd, ss, fds);
-    if (!ss.get_headrs().count("Content-Length") || ss.get_headrs().at("Content-Length") == "0")
+    else if (ss.get_headrs().count("Content-Length") && stoi(ss.get_headrs().at("Content-Length")) > max_body_size)
+    {
+        ss.setbody_limit(-1);
         fds.events = POLLOUT;
+    }
+    if (!ss.get_headrs().count("Transfer-Encoding") && (!ss.get_headrs().count("Content-Length") || ss.get_headrs().at("Content-Length") == "0"))
+        fds.events = POLLOUT;
+    cout << "server :" << clients.ss->get_name(0) <<endl;
     cout << "||||||||||||||||||||||||||||||||||||||||||" << endl;
 }
 
@@ -183,7 +211,16 @@ int guard(int n, string err)
 // /**********************/
 
 
+int is_binded_server(vector<server> ss, int i)
+{
+    server serv = ss[i];
 
+    for (int j = 0; j < i; j++)
+        if (serv.get_listen_port()== ss[j].get_listen_port() && serv.get_listen_host()== ss[j].get_listen_host())
+            return 0;
+    cout << serv.get_name(0) << endl;
+    return 1;
+}
 
 void servers(vector<server> ss,vector<pollfd> &fds)
 {
@@ -191,22 +228,23 @@ void servers(vector<server> ss,vector<pollfd> &fds)
 
     for (int i = 0; i < ss.size(); i++)
     {
-        sockaddr_in sockaddr = ss[i].get_sock_ader();
-        int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-        guard(sockfd, "Failed to create socket.");
-        int flags = guard(fcntl(sockfd, F_GETFL), "could not get flags on TCP listening socket");
-        guard(fcntl(sockfd, F_SETFL, O_NONBLOCK | flags), "could not set TCP listening socket to be non-blocking");
-        guard((int)bind(sockfd, (struct sockaddr*)&sockaddr, sizeof(sockaddr)),"Failed to bind.");
-        guard(listen(sockfd, 255), "Failed to listen on socket.");
-        /************/
-        /*************/
-        fd.fd = sockfd;
-        fd.events = POLLIN;
-        fds.push_back(fd);
+        if (is_binded_server(ss, i))
+        {
+            sockaddr_in sockaddr = ss[i].get_sock_ader();
+            int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+            guard(sockfd, "Failed to create socket.");
+            int flags = guard(fcntl(sockfd, F_GETFL), "could not get flags on TCP listening socket");
+            guard(fcntl(sockfd, F_SETFL, O_NONBLOCK | flags), "could not set TCP listening socket to be non-blocking");
+            guard((int)bind(sockfd, (struct sockaddr*)&sockaddr, sizeof(sockaddr)),"Failed to bind.");
+            guard(listen(sockfd, 255), "Failed to listen on socket.");
+            fd.fd = sockfd;
+            fd.events = POLLIN;
+            fds.push_back(fd);
+        }
     }
 }
 
-void addclienttoserver(server &ss,vector<client>& clients,vector<pollfd> &fds, int fd)
+void addclienttoserver(server &ss,vector<client>& clients,vector<pollfd> &fds, int fd,std::vector<server> &serv)
 {
     string str = "client";
     client stmp;
@@ -221,10 +259,14 @@ void addclienttoserver(server &ss,vector<client>& clients,vector<pollfd> &fds, i
     fds.push_back(fds1);
     stmp.set_fd(connection);
     stmp.set_serv(ss);
-
-    cout << ss.get_name(0) <<"  thse seerver is"<< endl;
+    for (int i = 0; i < serv.size(); i++)
+    {
+        if (serv[i].get_listen_port()== ss.get_listen_port() && serv[i].get_listen_host()== ss.get_listen_host())
+            stmp.set_servers(serv[i]);
+    }
     clients.push_back(stmp);
     cout << "client 200 ok" << endl;
+    cout << ss.get_name(0) <<"server name"<< endl;
 }
 
 
@@ -237,6 +279,7 @@ void delete_client(vector<client>& clients, int i, int d ,vector<pollfd> &fds)
     for (vector<client>::iterator it = clients.begin(); it != clients.end();k++, it++)
         if (k == i)
         {
+            cout << "delete client num :"<< i <<endl;
             clients.erase(it);
             break ;
         }
@@ -251,9 +294,6 @@ void delete_client(vector<client>& clients, int i, int d ,vector<pollfd> &fds)
 }
 
 
-
-
-
 int main(int argc, char **argv)
 {
     string line;
@@ -263,9 +303,7 @@ int main(int argc, char **argv)
     parse_config root;
 
     root.before_start_parsing(argc, argv);
-
     cout << root.get_server_vect()[0].get_name(0) << " " << root.get_server_vect()[0].get_listen_port() << "::"<< endl;
-    // map<int ,string> trr = ss[0].geterrorpages();
     /***********************/
     vector<server> ss(root.get_server_vect());
     servers(ss, fds);
@@ -273,13 +311,21 @@ int main(int argc, char **argv)
     while (1)
     {
         guard(poll(fds.data(), fds.size(), -1), "serv poll() failed");
-    
-        for (int i = ss.size(), j = 0; i < clients.size() + ss.size(); i++, j++)
+        int j = 0;
+        for (int i = 0; i < ss.size(); i++)
+        {
+            if (is_binded_server(ss, i) && (fds[j].revents & POLLIN))
+                addclienttoserver(ss[i], clients, fds, fds[j++].fd, ss);
+            else if (is_binded_server(ss, i))
+                j++;
+        }
+        cout << j << ": fds index" << endl;
+        for (int i = j, j = 0; j < clients.size(); i++, j++)
         {
             if (fds[i].revents != 0 && fds[i].revents & POLLIN)
             {
                 cout << j << ": index :";
-                Requeststup(fds[i].fd, clients[j].req, fds[i]);
+                Requeststup(fds[i].fd, clients[j], fds[i]);
                 if (clients[j].req.empty())
                     continue;
                 cout << clients[j].req.rqmethod << " " << clients[j].req.location << " " << clients[j].req.vrs << endl;  //hadi dyal rqst lbghiti tpintehom
@@ -287,47 +333,41 @@ int main(int argc, char **argv)
                 {
                     cout << it->first << ": " << it->second <<endl;
                 }
-                // cout << "body :" << clients[j].req.body << endl;
-                // cout << "*" << clients[j].req.headers["Connection"] << "*----" << endl;
             }
             else if (fds[i].revents != 0 && fds[i].revents & POLLOUT)
             {
-                // std::string response = "HTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 12\n\nHello world!";
-                // send(fds[i].fd, response.c_str(), response.size(), 0);
-                // fds[i].events = POLLIN;
-        
     //                             /*********Response*********/
 
                 clients[j].respond(fds[i]);
-                cout << "halola\n\n\n\n"<< endl;
+                // cout << "halola\n\n\n\n"<< endl;
     //                             /******************/
                 
                 if (fds[i].events == POLLIN)
                 {
                     delete(clients[j].res);
                     clients[j].res = NULL;
-                    if (!(clients[j].req.get_headrs().count("Connection") && clients[j].req.get_headrs().at("Connection") == "keep-alive"))
-                        delete_client(clients, j--, i, fds);
+                    if (!(clients[j].req.get_headrs().find("Connection")->second == "keep-alive"))
+                    {
+                        delete_client(clients, j--, i--, fds);
+                        continue ;
+                    }
                     else
                         clients[j].req.clear();
                 }
             }
             else if (fds[i].revents != 0 && fds[i].revents & POLLHUP)
             {
-                delete_client(clients, j--, i, fds);
+                delete_client(clients, j--, i--, fds);
                 continue;
             }
-            // if (fds[i].events == POLLIN) 
-            //     fds[i].events = POLLHUP;
-            // else if (fds[i].events == POLLHUP)
-            //     fds[i].events = POLLIN;
+            if (fds[i].events & POLLIN) 
+                fds[i].events = POLLHUP;
+            else if (fds[i].events & POLLHUP)
+                fds[i].events = POLLIN;
         }
-        for (int i = 0; i < root.get_server_vect().size(); i++)
-            if (fds[i].revents != 0 && (fds[i].revents & POLLIN))
-                addclienttoserver(root.get_server_vect()[i], clients, fds, fds[i].fd);
         cout<< "__________the_end____________" << endl;
     // }
     }
 
+
 }
-//}
