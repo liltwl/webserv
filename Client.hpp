@@ -1,6 +1,8 @@
  #pragma once
 #include "Response.hpp"
+
 using namespace std;
+class Response;
 class client
 {
     public :
@@ -13,7 +15,7 @@ class client
         string chunk;
     
     client();
-    ~client();
+    ~client(){};
     void set_fd(int _fd);
     void set_serv(server& _ss);
     void set_servers(server _serv);

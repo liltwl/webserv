@@ -5,7 +5,7 @@ CFLAGS = -Wall -Wextra -Werror
 
 CC = c++
 
-FIL_ = test_merge.cpp request.cpp
+FIL_ = test_merge.cpp request.cpp Response.cpp Header.cpp Client.cpp Statucode.cpp 
 
 
 OBJ = $(FIL:.c=.o)

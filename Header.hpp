@@ -1,7 +1,7 @@
  #pragma once
 
 #include "request.hpp"
-#include "./Statuscode.hpp"
+
 #include "./Response.hpp"
 #include <dirent.h>
 #include <sys/types.h>

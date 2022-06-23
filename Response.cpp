@@ -18,7 +18,8 @@ string renderpage(string filename)
 
 Response::Response(Request &_req, server &_serv) : req(_req) , serv(_serv)
 {
-        this->filesize = 0; 
+        this->filesize = 0;
+        this->codI = new Statucode; 
         this->header = new Header(serv);     
         this->status = this->handlerequest(req,serv);          
         this->methode = req.get_method();
@@ -114,6 +115,10 @@ int Response::handlerequest(Request &req, server &serv)
     this->findlocation();
     if(checkmethod(serv,this->rlocation,req.get_method()) == false)
         return 405;
+    if(get_type(this->req.get_location(), 1) == "application/php")
+    {
+        return 600;
+    }
     if(req.get_method() == "GET")
         return this->handleGet();
     else if(req.get_method() == "POST")
@@ -241,7 +246,6 @@ int Response::handleGet()
                 return(403);
         }     
     }
-    else
         return (205);
 }
 
@@ -363,19 +367,19 @@ string Response::responde()
     }
     else if (this->status != 200)
     {  
-        this->code.set_error(this->serv.get_error_pages(), this->status, this->serv.get_error_pages_size()) ;
+        this->codI->set_error(this->serv.get_error_pages(), this->status, this->serv.get_error_pages_size()) ;
         if(this->status == 201)
         {  
-           content += this->code.get_errorhtml(this->status,this->uploadfile);
+           content += this->codI->get_errorhtml(this->status,this->uploadfile);
            this->filesize = content.size();
         }
         else
         {
-            content += this->code.get_errorhtml(this->status,"");
+            content += this->codI->get_errorhtml(this->status,"");
             this->filesize = content.size();
         }
     }
-    header->set_firstline(code.get_code(status));
+    header->set_firstline(codI->get_code(status));
     if(this->filesize > 0 )
             header->setHeader("Content-Length" , to_string(this->filesize));
     else

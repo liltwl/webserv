@@ -2,14 +2,15 @@
 
 #include "request.hpp"
 #include "Header.hpp"
-#include "Statuscode.hpp"
+#include "Client.hpp"
+#include "Statucode.hpp"
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 using namespace std;
 
-
-
+class Header;
+class Statucode;
 class Response
 {
     private:
@@ -29,13 +30,14 @@ class Response
         int status;
         //long long wrotebytes;
         long long filesize;
-        int handleGet();
-        int handleDelete();
-        Statuscode code;
-        int handlePost();
-        void findlocation();
+
+        Statucode *codI;
+
     public:
-    
+            int handleGet();
+        int handleDelete();
+            int handlePost();
+        void findlocation();
     Response( Request &_req, server &_serv);
     long get_size();
     int handleredirection();
