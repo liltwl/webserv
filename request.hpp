@@ -35,15 +35,18 @@ class Request
         std::string vrs;
         map<std::string, std::string> headers;
         std::string body;
-        size_t body_len;
+        std::string query;
+        int body_len;
 
     public :
 
         Request();
+        ~Request();
         Request(Request const& other);
         Request& operator=(Request const& other);
         void setrqmethod(std::string val);
         void setlocation(std::string val);
+        void setquery(std::string val);
         void setversion(std::string val);
         void setbody_limit(int val);
         void addheaders(std::string key, std::string value);
@@ -54,7 +57,7 @@ class Request
         std::string get_version();
         std::map<std::string, std::string> get_headrs();
         std::string& get_body();
-        size_t get_body_len();
+        int get_body_len();
 
         void clear();
         int empty_header();

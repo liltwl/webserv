@@ -5,6 +5,10 @@ Request::Request(): body_len(0)
 {
 }
 
+Request::~Request()
+{
+}
+
 Request::Request(Request const& other)
 {
     *this = other;
@@ -43,6 +47,11 @@ void Request::setbody_limit(int val)
     body_len = val;
 }
 
+void Request::setquery(std::string val)
+{
+    query = val;
+}
+
 void Request::addheaders(std::string key, std::string value)
 {
     headers[key] = value;
@@ -79,7 +88,7 @@ std::string& Request::get_body()
     return body;
 }
 
-size_t Request::get_body_len()
+int Request::get_body_len()
 {
     return body_len;
 }
