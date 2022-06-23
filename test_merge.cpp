@@ -128,7 +128,6 @@ void chunked_body_pars(int fd, Request& ss, pollfd &fds)
     {
         string stmp ;
         getnextline(fd, stmp);
-        cout << stmp << endl;
 
         if (isxdigit(stmp[0])) 
             len = stol(stmp, nullptr, 16);
@@ -136,12 +135,10 @@ void chunked_body_pars(int fd, Request& ss, pollfd &fds)
         if (len > 0)
         {
             body_len += getlenline(fd, stmp, len);
-            cout << len  << " :chunk length : "<< body_len << endl;
             ss.addbody(stmp, body_len);
         }
         else if (len == 0)
         {
-            cout << len << " :final byte"<< endl;
             if (getlenline(fd, stmp, 1) == 1)
                 ss.setbody_limit(-1);
             fds.events = POLLOUT;
@@ -176,7 +173,6 @@ void Requeststup(int fd, client& clients, pollfd &fds)
     int i, j;
     int max_body_size = clients.ss->get_client_max_body_size();
 
-    cout << "header :" << ss.empty_header() << endl;
     if (ss.empty_header())
         headerpars(fd, ss, clients);
     else if(ss.get_headrs().count("Transfer-Encoding"))
@@ -288,21 +284,8 @@ void delete_client(vector<client>& clients, int i, int d ,vector<pollfd> &fds)
         }
 }
 
-
-int main(int argc, char **argv)
+void serv(vector<pollfd>& fds, vector<client>& clients, vector<server>& ss)
 {
-    string line;
-    vector<client> clients;
-    // Request req;
-    vector<pollfd> fds;
-    parse_config root;
-
-    root.before_start_parsing(argc, argv);
-    cout << root.get_server_vect()[0].get_name(0) << " " << root.get_server_vect()[0].get_listen_port() << "::"<< endl;
-    /***********************/
-    vector<server> ss(root.get_server_vect());
-    servers(ss, fds);
-
     while (1)
     {
         guard(poll(fds.data(), fds.size(), -1), "serv poll() failed");
@@ -314,7 +297,6 @@ int main(int argc, char **argv)
             else if (is_binded_server(ss, i))
                 j++;
         }
-        cout << j << ": fds index" << endl;
         for (int i = j, j = 0; j < clients.size(); i++, j++)
         {
             if (fds[i].revents != 0 && fds[i].revents & POLLIN)
@@ -331,12 +313,7 @@ int main(int argc, char **argv)
             }
             else if (fds[i].revents != 0 && fds[i].revents & POLLOUT)
             {
-    //                             /*********Response*********/
-
                 clients[j].respond(fds[i]);
-                // cout << "halola\n\n\n\n"<< endl;
-    //                             /******************/
-                
                 if (fds[i].events == POLLIN)
                 {
                     delete(clients[j].res);
@@ -360,9 +337,19 @@ int main(int argc, char **argv)
             else if (fds[i].events & POLLHUP)
                 fds[i].events = POLLIN;
         }
-        cout<< "__________the_end____________" << endl;
-    // }
+        cout << "__________the_end____________" << endl;
     }
+}
 
+int main(int argc, char **argv)
+{
+    vector<client> clients;
+    vector<pollfd> fds;
+    parse_config root;
 
+    root.before_start_parsing(argc, argv);
+    vector<server> ss(root.get_server_vect());
+    servers(ss, fds);
+    serv(fds, clients, ss);
+    return (0);
 }
