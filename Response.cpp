@@ -38,7 +38,7 @@ int Response::iscgi(Request &req, server &serv)
 
     return(false);
 }
-Response::Response(Request &_req, server &_serv) : req(_req) , serv(_serv)
+Response::Response(Request &_req, server &_serv) : req(_req) , serv(_serv), is_chunked(0)
 {
         this->filesize = 0;
         this->codI = new Statucode; 
@@ -47,7 +47,6 @@ Response::Response(Request &_req, server &_serv) : req(_req) , serv(_serv)
         this->header = new Header(serv);     
         this->status = this->handlerequest(req,serv);          
         this->methode = req.get_method();
-        this->path = "";
         this->indexstats = false;
         this->cgipath = "";
         
@@ -258,8 +257,9 @@ int Response::handleGet()
         this->header->setHeader("Content-Type",get_type(this->req.get_location(), 1));
         this->filesize = file_size(paths);
         this->header->setHeader("Content-Length",to_string(this->filesize));
-        this->body = renderpage(paths);
+        //this->body = renderpage(paths);
         this->path = paths;
+        cout << "the path is : " << path << endl;
         return(200);
     }
     if(finddir(paths) == 2)
@@ -422,10 +422,32 @@ string Response::responde()
     {
         content = renderpage()
     }*/
+    if (is_chunked == 1)
+    {
+        // string str = this->body.substr(0, (2000 - body.size() >= 2000 ? 2000: 2000 - body.size()));
+        // body = this->body.substr(2000, (2000 - body.size() >= 2000 ? 2000: 2000 - body.size()));
+        char buff[2001];
+        int i = read(fd_file, buff,2000);
+        buff[i] = 0;
+        if (i <= 2000)
+            is_chunked = 0;
+        filesize -= i;
+        cout << i <<  " body size:" << filesize  << endl;
+        return string(buff);
+    }
     if(this->status == 200)
     {
-        content += this->body;
-        this->filesize = content.size();
+        filesize = file_size(this->path);
+        if (file_size(this->path) > 2000)
+        {
+            is_chunked = 1;
+            fd_file = open(path.c_str(), O_RDONLY);
+        }
+        else
+        {
+            content += this->body;
+            this->filesize = content.size();
+        }
     }
     else if (this->status != 200)
     {  

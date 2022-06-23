@@ -33,24 +33,30 @@ class Response
         long long filesize;
         bool php_cgi;
         string cgipath;
-
+        int   is_chunked;
+        int    fd_file;
         Statucode *codI;
 
     public:
-            int handleGet();
-        int handleDelete();
-            int handlePost();
-        void findlocation();
+
+    int handleGet();
+    int handleDelete();
+    int handlePost();
+    void findlocation();
     Response( Request &_req, server &_serv);
     long get_size();
+    int get_is_chunked()
+    {
+        return is_chunked;
+    }
     int handleredirection();
     void renderindex(string path);
     string responde();
     int findindexfile(string paths);
     int handle_cgi();
     int iscgi(Request &req, server &serv);
+    int handlerequest(Request &req, server &serv);
 
-int handlerequest(Request &req, server &serv);
 };
 
 

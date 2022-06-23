@@ -80,10 +80,16 @@ void headerpars(int fd, Request& ss, client& clients)
             str = split(line, ' ');
         if (i == 0 && str.size() > 2)
         {
+            cout << "erf" << endl;
             ss.setrqmethod(str[0]);
             int j = str[1].find('?');
-            ss.setlocation(str[1].substr(0, j));
-            ss.setquery(str[1].substr(j, str[1].size()));
+            if (j > 0)
+            {
+                ss.setlocation(str[1].substr(0, j));
+                ss.setquery(str[1].substr(j, str[1].size()));
+            }
+            else
+                ss.setlocation(str[1]);
             ss.setversion(str[2]);
         }
         else if (i == 0 && !(str.size() > 2))
@@ -297,6 +303,7 @@ void serv(vector<pollfd>& fds, vector<client>& clients, vector<server>& ss)
                 Requeststup(fds[i].fd, clients[j], fds[i]);
             else if (fds[i].revents != 0 && fds[i].revents & POLLOUT)
             {
+                cout << "ferfer" << endl;
                 clients[j].respond(fds[i]);
                 if (fds[i].events == POLLIN)
                 {
@@ -304,7 +311,7 @@ void serv(vector<pollfd>& fds, vector<client>& clients, vector<server>& ss)
                     clients[j].res = NULL;
                     if (!(clients[j].req.get_headrs().find("Connection")->second == "keep-alive"))
                     {
-                        delete_client(clients, j--, i--, fds);
+                        delete_client(clients, j, i, fds);
                         continue ;
                     }
                     else

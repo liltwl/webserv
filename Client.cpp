@@ -26,11 +26,11 @@ server* client::get_serv()
 void client::respond(pollfd &fds)
 {
     if(this->res == NULL)
-    {
         res = new Response(req,*ss);
-        string a = res->responde();
-        send(fd, a.c_str(),res->get_size(),0);
-       fds.events = POLLIN;
-       delete(res);
+    string a = res->responde();
+    send(fd, a.c_str(),res->get_size(),0);
+    if (res->get_is_chunked() == 0)
+    {
+        fds.events = POLLIN;
     }
 };
