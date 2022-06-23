@@ -164,7 +164,7 @@ int Response::handleredirection()
 int Response::handlerequest(Request &req, server &serv)
 {
     cout << "respond dsdsd"<< serv.get_name(0) << endl;
-    if(this->req.get_body_len() == -1 || this->req.get_body_len() < stoi(this->req.get_headrs().find("Content-Length")->second))
+    if(req.empty_header()||this->req.get_body_len() == -1 || this->req.get_body_len() < (req.get_headrs().count("Content-Length") ?stoi(this->req.get_headrs().find("Content-Length")->second):0))
         return(400);
     if(this->handleredirection() != 0)
     {
