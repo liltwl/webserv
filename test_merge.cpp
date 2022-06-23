@@ -62,10 +62,10 @@ int getlenline(int fd, string &line, int len)
         i += enf;
         line.append(delim, enf);
     }
-    cout << i << endl;
     if ((enf = recv(fd, &nl, 2, 0)) > 0 && (nl[0] ==  13 && nl[1] == '\n'))
         return i;
-    return (enf == 0?i:-1);
+    cout << enf << " == " << len << endl;
+    return (enf == -1?i:-1);
 }
 
 void headerpars(int fd, Request& ss, client& clients)
@@ -77,7 +77,7 @@ void headerpars(int fd, Request& ss, client& clients)
     for(i = 0;(j = getnextline(fd, line))> 0; i++)
     {
         if(line.size() == 0) return ;
-        str = split(line, ' ');
+            str = split(line, ' ');
         if (i == 0 && str.size() > 2)
         {
             ss.setrqmethod(str[0]);
@@ -101,16 +101,12 @@ void headerpars(int fd, Request& ss, client& clients)
         string sr_name = ss.get_headrs().find("Host")->second;
         vector<server>& serv = clients.serv;
         for (int i = 0; i < serv.size(); i++)
-        {
             for (int j = 0; j < serv[i].get_name_size(); j++)
-            {
                 if (sr_name == serv[i].get_name(j))
                 {
                     clients.set_serv(serv[i]);
                     break ;
                 }
-            }
-        }
     }
 }
 
@@ -160,8 +156,6 @@ void body_pars(int fd, Request& ss, pollfd &fds)
     ss.setbody_limit(getlenline(fd, ss.get_body(), len));
 
     cout << ss.get_body_len() << endl;
-    if (getlenline(fd, line, 1) > 0)
-        ss.setbody_limit(-1);
     fds.events = POLLOUT;
 }
 
@@ -209,7 +203,6 @@ int is_binded_server(vector<server> ss, int i)
     for (int j = 0; j < i; j++)
         if (serv.get_listen_port()== ss[j].get_listen_port() && serv.get_listen_host()== ss[j].get_listen_host())
             return 0;
-    cout << serv.get_name(0) << endl;
     return 1;
 }
 
@@ -257,7 +250,6 @@ void addclienttoserver(server &ss,vector<client>& clients,vector<pollfd> &fds, i
     }
     clients.push_back(stmp);
     cout << "client 200 ok" << endl;
-    cout << ss.get_name(0) <<"server name"<< endl;
 }
 
 
@@ -300,17 +292,7 @@ void serv(vector<pollfd>& fds, vector<client>& clients, vector<server>& ss)
         for (int i = j, j = 0; j < clients.size(); i++, j++)
         {
             if (fds[i].revents != 0 && fds[i].revents & POLLIN)
-            {
-                cout << j << ": index :";
                 Requeststup(fds[i].fd, clients[j], fds[i]);
-                if (clients[j].req.empty())
-                    continue;
-                cout << clients[j].req.rqmethod << " " << clients[j].req.location << " " << clients[j].req.vrs << endl;  //hadi dyal rqst lbghiti tpintehom
-                for (map<string, string>::iterator it = clients[j].req.headers.begin(); it != clients[j].req.headers.end(); it++)
-                {
-                    cout << it->first << ": " << it->second <<endl;
-                }
-            }
             else if (fds[i].revents != 0 && fds[i].revents & POLLOUT)
             {
                 clients[j].respond(fds[i]);
