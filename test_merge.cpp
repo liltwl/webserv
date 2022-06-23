@@ -184,14 +184,9 @@ void Requeststup(int fd, client& clients, pollfd &fds)
     else if(ss.get_headrs().count("Content-Length") && stoi(ss.get_headrs().at("Content-Length")) <= max_body_size)
         body_pars(fd, ss, fds);
     else if (ss.get_headrs().count("Content-Length") && stoi(ss.get_headrs().at("Content-Length")) > max_body_size)
-    {
-        ss.setbody_limit(-1);
         fds.events = POLLOUT;
-    }
     if (!ss.get_headrs().count("Transfer-Encoding") && (!ss.get_headrs().count("Content-Length") || ss.get_headrs().at("Content-Length") == "0"))
         fds.events = POLLOUT;
-    cout << "server :" << clients.ss->get_name(0) <<endl;
-    cout << "||||||||||||||||||||||||||||||||||||||||||" << endl;
 }
 
 int guard(int n, string err)
