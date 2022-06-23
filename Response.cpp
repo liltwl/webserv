@@ -1,5 +1,5 @@
 #include "Response.hpp"
-
+#include "Cgi.hpp"
 
 string renderpage(string filename)
 {
@@ -15,16 +15,42 @@ string renderpage(string filename)
     return str;
     
 }
+int Response::iscgi(Request &req, server &serv)
+{
+    vector<string> str;
+    str =  split(req.get_location(),'.');
+    //string st;
+    str.back() = string(".") + str.back();
+    int i = 0;
+       
+    while(i < serv.get_cgi_size())
+    {
+        if(serv.get_cgi(i).get_cgi_name() == str.back())
+        {
+            if(str.back() == ".php")
+            {   
+                this->cgipath = serv.get_cgi(i).get_cgi_path();
+                return(true);
+            }
+        }
+        i++;
+    }
 
+    return(false);
+}
 Response::Response(Request &_req, server &_serv) : req(_req) , serv(_serv)
 {
         this->filesize = 0;
         this->codI = new Statucode; 
+        this->php_cgi = iscgi(this->req,this->serv);
+        //cout << this->serv.get_root()<< " tbnnn" << endl;
         this->header = new Header(serv);     
         this->status = this->handlerequest(req,serv);          
         this->methode = req.get_method();
         this->path = "";
         this->indexstats = false;
+        this->cgipath = "";
+        
 }
 long Response::get_size(){return this->size;};
 
@@ -105,7 +131,35 @@ int Response::handleredirection()
     }
  return 0;   
 }
+int Response::handle_cgi()
+{
+    Cgi cj;
+    string script;
+    string cgpath;
+    string outpath[2];
+    vector<string>spli = split(this->req.get_location(), '/');
+    string input = "";
+    if(this->rlocation != this->serv.get_root())
+        script = this->reqloc.get_root() +spli.back();
+    else
+        script = this->serv.get_root() + spli.back();
+    cout <<"my scrit" << script<< endl;
+    cgpath = this->cgipath;
+ 
+    if(this->req.get_method() == "POST")
+    {
+        return(502);
+    }
+    
+    if(cj.execute(input, script,cgpath,this->req) != 1)
+    {
+        return(506);
+    }
+    cout << "lqlawi"<< endl;   
+    cout << "script :" << script << endl << "cgipath: " + cgpath << endl;
+    return(503);
 
+}
 int Response::handlerequest(Request &req, server &serv)
 {
     if(req.empty_header()||this->req.get_body_len() == -1 || this->req.get_body_len() < (req.get_headrs().count("Content-Length") ?stoi(this->req.get_headrs().find("Content-Length")->second):0))
@@ -115,10 +169,13 @@ int Response::handlerequest(Request &req, server &serv)
     this->findlocation();
     if(checkmethod(serv,this->rlocation,req.get_method()) == false)
         return 405;
-    if(get_type(this->req.get_location(), 1) == "application/php")
-    {
-        return 600;
+    
+    if(this->php_cgi == true)
+    { 
+           
+        return(this->handle_cgi());
     }
+
     if(req.get_method() == "GET")
         return this->handleGet();
     else if(req.get_method() == "POST")
@@ -181,6 +238,7 @@ int Response::findindexfile(string paths)
 int Response::handleGet()
 {
     string paths;
+
     if(this->rlocation != this->serv.get_root())
     {
         paths = this->reqloc.get_root();
@@ -360,6 +418,10 @@ int Response::handleDelete()
 string Response::responde()
 {
     string content;
+    /*if(this->iscgi == true)
+    {
+        content = renderpage()
+    }*/
     if(this->status == 200)
     {
         content += this->body;
@@ -387,5 +449,6 @@ string Response::responde()
     //  header->setHeader("Set-Cookie" , "yuupi=zaba");
     content = this->header->get_Header() + content;
     this->size = content.size();
+
     return(content);
 }
