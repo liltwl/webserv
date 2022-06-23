@@ -1,6 +1,6 @@
  #pragma once
 
-#include "webserv_merge.hpp"
+#include "request.hpp"
 #include "Header.hpp"
 #include <dirent.h>
 #include <sys/types.h>
@@ -164,6 +164,8 @@ int Response::handleredirection()
 int Response::handlerequest(Request &req, server &serv)
 {
     cout << "respond dsdsd"<< serv.get_name(0) << endl;
+    if(this->req.get_body_len() == -1 || this->req.get_body_len() < stoi(this->req.get_headrs().find("Content-Length")->second))
+        return(400);
     if(this->handleredirection() != 0)
     {
         return 301;
@@ -497,6 +499,7 @@ class client
     public :
         int fd;
         server  *ss;
+        std::vector<server> serv;
         Request req;
         Response *res;
       
@@ -516,7 +519,11 @@ class client
     {
         ss = &_ss;
     }
-
+    
+    void set_servers(server _serv)
+    {
+        serv.push_back(_serv);
+    }
     int get_fd()
     {
         return fd;
@@ -528,7 +535,7 @@ class client
     }
     void respond(pollfd &fds)
     {
-        if(!this->res)
+        if(this->res == NULL)
         {
            cout << "respond forfdfdd" << endl;
             cout << "hannibal " << ss->get_name(0) << endl;
@@ -536,10 +543,9 @@ class client
             res = new Response(req,*ss);
            cout << "respond forgesd" << endl;
             string a = res->responde();
-            
             send(fd, a.c_str(),res->get_size(),0);
-            cout << res->get_size() <<endl;
-            //cout << a <<endl;
+            cout << "wssl lhna" <<endl;
+            cout << a <<endl;
            // exit(10);
            fds.events = POLLIN;
         }
@@ -576,8 +582,6 @@ class client
         // }
    // }
 };
-
-
 
 string Response::responde()
 {
