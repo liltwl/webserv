@@ -12,7 +12,10 @@ Header::Header(server &serv)
         this->Server = serv.get_name(0);
         this->date = getDate();
 }
-
+void Header::setHeaders(map<string,string> hdrs)
+{
+    this->headers.insert(hdrs.begin(),hdrs.end());
+}
 void Header::set_firstline(string firstline)
 {
     this->firstline = firstline;

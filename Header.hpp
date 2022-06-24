@@ -27,6 +27,7 @@ class Header
    
     void set_firstline(string firstline);
     string get_Header();
+    void setHeaders(map<string,string> hdrs);
     void setHeader(string key, string value);
 
 };

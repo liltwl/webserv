@@ -7,13 +7,16 @@
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include "Cgi.hpp"
 using namespace std;
-
+class Cgi;
 class Header;
 class Statucode;
 class Response
 {
     private:
+        string full_cgi_res;
+        string cgi_body;
         string methode;
         bool    indexstats;
         string  index_path;
@@ -30,6 +33,8 @@ class Response
         int status;
         //long long wrotebytes;
         long long filesize;
+        bool php_cgi;
+        string cgipath;
 
         Statucode *codI;
 
@@ -44,6 +49,8 @@ class Response
     void renderindex(string path);
     string responde();
     int findindexfile(string paths);
+    int handle_cgi();
+    int iscgi(Request &req, server &serv);
 
 int handlerequest(Request &req, server &serv);
 };

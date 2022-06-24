@@ -29,8 +29,9 @@ void client::respond(pollfd &fds)
     {
         res = new Response(req,*ss);
         string a = res->responde();
-        send(fd, a.c_str(),res->get_size(),0);
-       fds.events = POLLIN;
+        send(fd, a.c_str(),a.size(),0);
+        fds.events = POLLIN;
+        cout << a.size() << "  size"<< endl;
        delete(res);
     }
 };
