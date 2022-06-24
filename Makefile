@@ -1,24 +1,24 @@
 
 NAME = webserv
 
-CFLAGS = -Wall -Wextra -Werror
+CFLAGS = -Wall -Wextra -Werror 
 
 CC = c++
 
-FIL_ = test_merge.cpp request.cpp Response.cpp Header.cpp Client.cpp Statucode.cpp 
+FIL_ = webserv.cpp request.cpp response.cpp Client.cpp Statucode.cpp Cgi.cpp Header.cpp
 
 
 OBJ = $(FIL:.c=.o)
 
-FIL = $(addprefix ./, $(FIL_))
+FIL = $(addprefix srcs/, $(FIL_))
 
 all: $(NAME)
 
 $(NAME): $(FIL)
-	$(CC)  $(FIL) parse_confile/*.cpp -o $(NAME)
+	$(CC) $(CFLAGS)  $(FIL) parse_confile/*.cpp -o $(NAME)
 
 run1: $(NAME)
-	./webserv 1.config
+	./webserv ./conf_file/1.config
 
 run: $(NAME)
 	./webserv dflt.config
