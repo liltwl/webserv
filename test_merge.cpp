@@ -217,7 +217,7 @@ int is_binded_server(vector<server> ss, int i)
 void servers(vector<server> ss,vector<pollfd> &fds)
 {
     pollfd fd;
-
+    int set = 1;
     for (int i = 0; i < ss.size(); i++)
     {
         if (is_binded_server(ss, i))
@@ -225,6 +225,7 @@ void servers(vector<server> ss,vector<pollfd> &fds)
             sockaddr_in sockaddr = ss[i].get_sock_ader();
             int sockfd = socket(AF_INET, SOCK_STREAM, 0);
             guard(sockfd, "Failed to create socket.");
+            setsockopt(sockfd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&set, sizeof(int));
             int flags = guard(fcntl(sockfd, F_GETFL), "could not get flags on TCP listening socket");
             guard(fcntl(sockfd, F_SETFL, O_NONBLOCK | flags), "could not set TCP listening socket to be non-blocking");
             guard((int)bind(sockfd, (struct sockaddr*)&sockaddr, sizeof(sockaddr)),"Failed to bind.");
@@ -238,6 +239,7 @@ void servers(vector<server> ss,vector<pollfd> &fds)
 
 void addclienttoserver(server &ss,vector<client>& clients,vector<pollfd> &fds, int fd,std::vector<server> &serv)
 {
+    int    set = 1;
     string str = "client";
     client stmp;
     size_t addrlen = sizeof(ss.get_sock_ader());
@@ -246,6 +248,7 @@ void addclienttoserver(server &ss,vector<client>& clients,vector<pollfd> &fds, i
                 
     int connection = accept(fd, (struct sockaddr*)&sockaddr, (socklen_t*)&addrlen);
     guard(connection, "Failed to grab connection.");
+    setsockopt(connection, SOL_SOCKET, SO_NOSIGPIPE, (void *)&set, sizeof(int));
     fds1.fd = connection;
     fds1.events = POLLIN;
     fds.push_back(fds1);
@@ -288,17 +291,19 @@ void serv(vector<pollfd>& fds, vector<client>& clients, vector<server>& ss)
 {
     while (1)
     {
+        std::cerr << "POSITION 00 : ******************************" << std::endl;
         guard(poll(fds.data(), fds.size(), -1), "serv poll() failed");
         int j = 0;
+        std::cerr << "POSITION 01 : ******************************" << std::endl;
         for (int i = 0; i < ss.size(); i++)
         {
-            if (is_binded_server(ss, i) && (fds[j].revents & POLLIN))
-                addclienttoserver(ss[i], clients, fds, fds[j++].fd, ss);
-            else if (is_binded_server(ss, i))
+            if (is_binded_server(ss, i))
                 j++;
         }
+        std::cerr << "POSITION 02 : ******************************" << std::endl;
         for (int i = j, j = 0; j < clients.size(); i++, j++)
         {
+            cout << "header :" << i << endl;
             if (fds[i].revents != 0 && fds[i].revents & POLLIN)
                 Requeststup(fds[i].fd, clients[j], fds[i]);
             else if (fds[i].revents != 0 && fds[i].revents & POLLOUT)
@@ -311,7 +316,7 @@ void serv(vector<pollfd>& fds, vector<client>& clients, vector<server>& ss)
                     clients[j].res = NULL;
                     if (!(clients[j].req.get_headrs().find("Connection")->second == "keep-alive"))
                     {
-                        delete_client(clients, j, i, fds);
+                        delete_client(clients, j--, i--, fds);
                         continue ;
                     }
                     else
@@ -327,6 +332,14 @@ void serv(vector<pollfd>& fds, vector<client>& clients, vector<server>& ss)
                 fds[i].events = POLLHUP;
             else if (fds[i].events & POLLHUP)
                 fds[i].events = POLLIN;
+        }
+        j = 0;
+        for (int i = 0; i < ss.size(); i++)
+        {
+            if (is_binded_server(ss, i) && fds[j].revents != 0 && (fds[j].revents & POLLIN))
+                addclienttoserver(ss[i], clients, fds, fds[j++].fd, ss);
+            else if (is_binded_server(ss, i))
+                j++;
         }
         cout << "__________the_end____________" << endl;
     }

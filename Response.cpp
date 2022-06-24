@@ -20,14 +20,13 @@ int Response::iscgi(Request &req, server &serv)
     vector<string> str;
     str =  split(req.get_location(),'.');
     //string st;
-    str.back() = string(".") + str.back();
     int i = 0;
        
     while(i < serv.get_cgi_size())
     {
         if(serv.get_cgi(i).get_cgi_name() == str.back())
         {
-            if(str.back() == ".php")
+            if(str.back() == "php")
             {   
                 this->cgipath = serv.get_cgi(i).get_cgi_path();
                 return(true);
@@ -426,18 +425,20 @@ string Response::responde()
     {
         // string str = this->body.substr(0, (2000 - body.size() >= 2000 ? 2000: 2000 - body.size()));
         // body = this->body.substr(2000, (2000 - body.size() >= 2000 ? 2000: 2000 - body.size()));
-        char buff[2001];
-        int i = read(fd_file, buff,2000);
-        buff[i] = 0;
-        if (i <= 2000)
+        string str;
+        char buff[5002];
+        int i = read(fd_file, buff,5000);
+        if (i < 5000)
             is_chunked = 0;
-        filesize -= i;
         cout << i <<  " body size:" << filesize  << endl;
-        return string(buff);
+        filesize -= i;
+        str.append(buff, i);
+        return str;
     }
     if(this->status == 200)
     {
         filesize = file_size(this->path);
+        cout << " file size:" << filesize << endl;
         if (file_size(this->path) > 2000)
         {
             is_chunked = 1;

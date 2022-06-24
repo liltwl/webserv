@@ -25,10 +25,13 @@ server* client::get_serv()
 }
 void client::respond(pollfd &fds)
 {
+    static int count = 0;
     if(this->res == NULL)
-        res = new Response(req,*ss);
+    res = new Response(req,*ss);
     string a = res->responde();
-    send(fd, a.c_str(),res->get_size(),0);
+    std::cerr << "FD_DBG : " << fd << std::endl;
+    std::cerr << "SIZE_SENT : " << (count += send(fd, a.c_str(),a.size(),0)) << std::endl;
+    cout << a.size() << endl;
     if (res->get_is_chunked() == 0)
     {
         fds.events = POLLIN;
