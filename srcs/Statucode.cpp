@@ -438,6 +438,8 @@ std::string get_type(string location, int mode)
         }
         return("");
     }
+    return NULL;
 }
+
 
 

@@ -412,6 +412,7 @@ int Response::handleDelete()
         else
             return(403);
     }
+    return 0;
 }
 
 string Response::responde()

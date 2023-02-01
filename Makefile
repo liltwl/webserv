@@ -10,12 +10,12 @@ FIL_ = test_merge.cpp request.cpp Response.cpp Header.cpp Client.cpp Statucode.c
 
 OBJ = $(FIL:.c=.o)
 
-FIL = $(addprefix ./, $(FIL_))
+FIL = $(addprefix ./srcs/, $(FIL_))
 
 all: $(NAME)
 
 $(NAME): $(FIL)
-	$(CC)  $(FIL) parse_confile/*.cpp -o $(NAME)
+	$(CC)  $(FIL) srcs/parse_confile/*.cpp -o $(NAME)
 
 run1: $(NAME)
 	./webserv 1.config
